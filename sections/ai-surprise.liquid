@@ -1,0 +1,58 @@
+<section class="ai-design-section" style="background: #0a0a0a; padding: 80px 0; font-family: sans-serif;">
+  <div style="max-width: 1100px; margin: 0 auto; padding: 0 20px;">
+    
+    <div style="text-align: center; margin-bottom: 50px;">
+      <h2 style="color: #fff; font-size: 3.5rem; letter-spacing: -1px; margin-bottom: 10px;">
+        {{ section.settings.title | default: 'AI Experience' }}
+      </h2>
+      <div style="width: 80px; h-eight: 4px; background: cyan; margin: 0 auto; box-shadow: 0 0 15px cyan;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+      {% for i in (1..3) %}
+      <div class="glass-card">
+        <span style="color: cyan; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">Feature 0{{ i }}</span>
+        <h3 style="color: white; margin: 15px 0;">Innovation Lab</h3>
+        <p style="color: #aaa; line-height: 1.6;">Dieses Design wurde direkt über VS Code in dein Horizon Theme injiziert. Volle Kontrolle!</p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    transition: all 0.4s ease;
+  }
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    transform: translateY(-10px);
+    border-color: cyan;
+    box-shadow: 0 20px 40px rgba(0, 255, 255, 0.1);
+  }
+</style>
+
+{% schema %}
+{
+  "name": "AI Surprise Pro",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Titel der Sektion",
+      "default": "Future of eCommerce"
+    }
+  ],
+  "presets": [
+    {
+      "name": "AI Surprise Pro"
+    }
+  ]
+}
+{% endschema %}
