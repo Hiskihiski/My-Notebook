@@ -11,7 +11,7 @@ import { provideFirestore, getFirestore } from '@angular/fire/firestore';
 import { provideAuth, getAuth } from '@angular/fire/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB0aYVcruDHf_FqxHaZ2ApYmni7Lqb6suk",
+  apiKey: "AIzaSyAC9-Wvo-oan4-xqYFVyWnlBrNdXUEMPvs",
   authDomain: "my-notebook-web.firebaseapp.com",
   projectId: "my-notebook-web",
   storageBucket: "my-notebook-web.firebasestorage.app",
