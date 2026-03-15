@@ -1,3 +1,8 @@
 # Sensitive files
+/node_modules
+/dist
+/.angular
+.firebase
+.env
 src/environments/
 .env
