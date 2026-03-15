@@ -1,2 +1,3 @@
-node_modules/
-*.local
+# Sensitive files
+src/environments/
+.env
