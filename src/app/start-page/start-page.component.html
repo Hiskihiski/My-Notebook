@@ -1,0 +1,143 @@
+
+<div class="container">
+  <!-- Sidebar mit höherem z-index, damit sie über anderen Elementen liegt -->
+  <div class="decorative-sidebar" style="z-index: 1;"></div>
+
+
+
+
+
+<div class="card-container">
+    
+    <div class="card login-card" style="overflow: visible; position: relative;">
+      <div class="card-header blue-bg">
+        <h2>🔐 Register</h2>
+      </div>
+      <div class="card-body">
+        <form>
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="voarname" class="form-label">Vorname:</label>
+            <input id="voarname" type="text" [(ngModel)]="vorname01" name="voarname" 
+                   placeholder="z. B. mohid123" required class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="Nachname" class="form-label">Nachname:</label>
+            <input id="Nachname" type="text" [(ngModel)]="nachname01" name="Nachname" 
+                   placeholder="z. B. mohid123" required class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="email" class="form-label">Email:</label>
+            <input id="email" type="email" [(ngModel)]="email" name="email" 
+                   placeholder="Email" required class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="password" class="form-label">Passwort:</label>
+            <input id="password" type="password" [(ngModel)]="password01" name="password" 
+                   placeholder="••••••••" required class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <button type="button" class="btn primary-btn ripple-effect" (click)="createUser()" style="position: relative; z-index: 20;">Register</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card login-card" style="overflow: visible; position: relative;">
+      <div class="card-header blue-bg">
+        <h2>🔐 Login</h2>
+      </div>
+      <div class="card-body">
+        <form>
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="username" class="form-label">Benutzername:</label>
+            <input id="username" type="text" [(ngModel)]="username" name="username" 
+                   placeholder="z. B. mohid123" required class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="login-password" class="form-label">Passwort:</label>
+            <input id="login-password" type="password" [(ngModel)]="password" name="password" 
+                   placeholder="••••••••" required class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <button type="button" class="btn primary-btn ripple-effect" (click)="onLogin()" style="position: relative; z-index: 20;">Anmelden</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+    <!-- Persönliche Daten -->
+    <div class="card data-card" *ngIf="isLoggedIn" style="overflow: visible; position: relative;">
+      <div class="card-header green-bg">
+        <h2>📝 Persönliche Daten</h2>
+      </div>
+      <div class="card-body">
+        <form>
+          <div class="form-row">
+            <div class="form-group" style="position: relative; z-index: 10;">
+              <label for="vorname" class="form-label">Vorname:</label>
+              <input id="vorname" type="text" [(ngModel)]="vorname" name="vorname" 
+                     placeholder="Max" class="form-input" style="position: relative; z-index: 11;">
+            </div>
+            
+            <div class="form-group" style="position: relative; z-index: 10;">
+              <label for="nachname" class="form-label">Nachname:</label>
+              <input id="nachname" type="text" [(ngModel)]="nachname" name="nachname" 
+                     placeholder="Mustermann" class="form-input" style="position: relative; z-index: 11;">
+            </div>
+          </div>
+          
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="adresse" class="form-label">Adresse:</label>
+            <input id="adresse" type="text" [(ngModel)]="adresse" name="adresse" 
+                   placeholder="Musterstraße 123" class="form-input" style="position: relative; z-index: 11;">
+          </div>
+          
+          <div class="form-group" style="position: relative; z-index: 10;">
+            <label for="stadt" class="form-label">Stadt:</label>
+            <input id="stadt" type="text" [(ngModel)]="stadt" name="stadt" 
+                   placeholder="Hamburg" class="form-input" style="position: relative; z-index: 11;">
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Statusmeldung -->
+  <div class="status-box" [class.success]="isSuccess" [class.error]="!isSuccess">
+    <div class="status-content">
+      <span class="status-icon">{{ isSuccess ? '✓' : '⚠' }}</span>
+      <h3 class="status-message">{{ message }}</h3>
+      <button *ngIf="isLoggedIn" (click)="logout()" class="logout-btn ripple-effect">Abmelden</button>
+    </div>
+  </div>
+
+
+  <!-- Admin-Bereich -->
+  <div class="card admin-card" *ngIf="secretContent" style="overflow: visible; position: relative;">
+    <div class="card-header red-bg">
+      <h2>🔒 Geheimer Admin-Bereich</h2>
+    </div>
+    <div class="card-body">
+      <p>Willkommen im Teamkapitän-Bereich!</p>
+      <button (click)="showSecret()" class="btn secret-btn ripple-effect">Geheime Taktiken anzeigen</button>
+    </div>
+  </div>
+
+
+  <!-- Über Mich -->
+  <div class="card about-card" style="overflow: visible; position: relative;">
+    <div class="card-header purple-bg">
+      <h2>📌 Über die Website </h2>
+    </div>
+    <div class="card-body">
+      <ul class="about-list">
+        <li class="about-item"> <span style="font-family: 'Courier New', Courier, monospace;">Made in germany </span> </li>
+        <li class="about-item"> <span style="font-family: 'Courier New', Courier, monospace;">Creation date 09.july.25</span> </li>
+      </ul>
+    </div>
+  </div>

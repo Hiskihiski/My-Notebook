@@ -1,0 +1,31 @@
+<div class="notebook-container">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2 style="margin: 0; font-size: 24px;">📝 Dein Notizbuch</h2>
+    <button (click)="goToLogin()" class="back-button">
+      <span>← Zurück zum Login</span>
+    </button>
+  </div>
+
+  <!-- Notiz schreiben -->
+  <div class="note-input">
+    <textarea [(ngModel)]="newNote" placeholder="✍️ Neue Notiz schreiben..."></textarea>
+    <button (click)="addNote()">➕ Notiz hinzufügen</button>
+  </div>
+  
+ 
+
+
+  <!-- Liste der Notizen -->
+  <div class="note-list" *ngIf="notes.length > 0; else emptyState">
+    <div *ngFor="let note of notes" class="note-card">
+      <p>{{ note.content }}</p>
+      <button (click)="deleteNote(note.id!)" title="Notiz löschen">🗑️</button>
+    </div>
+  </div>
+
+  <!-- Leerer Zustand -->
+ <ng-template #emptyState>
+  <p style="text-align: center; color: #888; margin-top: 40px; font-style: italic;" [@fadeIn] class="quote">
+    {{ randomQuote }}
+  </p>
+</ng-template>

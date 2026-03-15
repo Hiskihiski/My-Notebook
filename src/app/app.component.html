@@ -1,0 +1,14 @@
+<div *ngIf="isLoading" class="luxury-loader">
+  <div class="loader-inner">
+    <div class="orb"></div>
+    <div class="rings">
+      <div class="ring one"></div>
+      <div class="ring two"></div>
+      <div class="ring three"></div>
+    </div>
+    <h2 class="loading-status">INITIALIZING<span>SYSTEMS</span></h2>
+  </div>
+  <div class="ambient-glow"></div>
+</div>
+
+<router-outlet></router-outlet>

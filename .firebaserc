@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "my-notebook-web"
+  },
+  "targets": {
+    "my-notebook-web": {
+      "hosting": {
+        "app": [
+          "."
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

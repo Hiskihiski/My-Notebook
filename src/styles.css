@@ -1,0 +1,137 @@
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #050505 !important;
+  color: #e0e0e0;
+}
+
+/* Force every component container to be transparent */
+body, app-root, .card-container, .notebook-container {
+  background-color: transparent !important;
+}
+/* --- LUXURY LOADER OVERLAY --- */
+.luxury-loader {
+  position: fixed;
+  inset: 0;
+  background: #050505;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+/* --- THE AMBIENT BACK-GLOW --- */
+.ambient-glow {
+  position: absolute;
+  width: 150%;
+  height: 150%;
+  background: radial-gradient(circle at center, rgba(123, 31, 162, 0.15) 0%, rgba(0, 184, 212, 0.05) 30%, transparent 70%);
+  animation: bgPulse 8s infinite alternate ease-in-out;
+  z-index: 1;
+}
+
+/* --- THE CENTRAL ORB (Morphing Shape) --- */
+.orb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #7b1fa2, #00b8d4);
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  filter: blur(1px);
+  box-shadow: 0 0 40px rgba(123, 31, 162, 0.6), inset 0 0 20px rgba(255,255,255,0.3);
+  animation: morph 4s infinite alternate ease-in-out, rotate 10s linear infinite;
+  z-index: 5;
+}
+
+/* --- THE TRIPLE RINGS --- */
+.rings {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+}
+
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+
+.ring.one {
+  width: 140px;
+  height: 140px;
+  border-top-color: rgba(123, 31, 162, 0.5);
+  animation: spin 2s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+}
+
+.ring.two {
+  width: 180px;
+  height: 180px;
+  border-bottom-color: rgba(0, 184, 212, 0.3);
+  animation: spin 3s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite reverse;
+}
+
+.ring.three {
+  width: 220px;
+  height: 220px;
+  border-left-color: rgba(255, 255, 255, 0.1);
+  animation: spin 4s linear infinite;
+}
+
+/* --- TEXT STYLING --- */
+.loading-status {
+  position: absolute;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 0.7rem;
+  letter-spacing: 8px;
+  margin: 0;
+  text-align: center;
+  opacity: 0.8;
+  width: 300px;
+}
+
+.loading-status span {
+  display: block;
+  font-weight: 200;
+  margin-top: 10px;
+  color: #7b1fa2;
+  text-shadow: 0 0 10px rgba(123, 31, 162, 0.5);
+  animation: blink 1.5s infinite;
+}
+
+/* --- KEYFRAMES (The Magic) --- */
+@keyframes morph {
+  0% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
+  50% { border-radius: 50% 50% 20% 80% / 25% 80% 20% 75%; }
+  100% { border-radius: 67% 33% 47% 53% / 37% 20% 80% 63%; }
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bgPulse {
+  from { transform: scale(1) translate(-5%, -5%); }
+  to { transform: scale(1.1) translate(5%, 5%); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
