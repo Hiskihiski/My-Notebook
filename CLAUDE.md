@@ -19,7 +19,7 @@ Firebase Hosting is wired up (`firebase.json` → `dist/`, project `my-notebook-
 
 ## Environment
 
-`VITE_FIREBASE_API_KEY` must be set in `.env` (copy `.env.example`). The key is a rotated/restricted one kept out of git. The rest of the Firebase config is hard-coded in `src/firebase.ts` — it's public by design; security is enforced by `firestore.rules` and Firebase Auth, not by hiding identifiers.
+`VITE_FIREBASE_API_KEY` must be set in `.env` (copy `.env.example`). The key must be the one Firebase associates with the web app ("Browser key (auto-created by Firebase)" in Cloud Console → Credentials), restricted to the hosting domains + localhost and to Firestore / Identity Toolkit / Token Service APIs. Google sign-in's popup (`<authDomain>/__/auth/handler`) reads the key from Firebase's `/__/firebase/init.json`, not from our bundle — so deleting that key breaks Google sign-in even if `.env` holds a valid one. The rest of the Firebase config is hard-coded in `src/firebase.ts` — it's public by design; security is enforced by `firestore.rules` and Firebase Auth, not by hiding identifiers.
 
 ## Architecture
 
