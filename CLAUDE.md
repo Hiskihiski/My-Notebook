@@ -2,6 +2,36 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow
+
+**Always analyze the codebase and present an execution plan before making code edits.** For anything beyond a trivial one-liner, read the relevant files first, then lay out the plan (files to touch, approach, edge cases) and get user confirmation before editing.
+
+## Folder structure
+
+```
+webpage-v2/
+├── src/
+│   ├── main.ts          # Entry point: mounts #app, routes on onAuthStateChanged
+│   ├── app.ts           # Signed-in notebook UI (cards, modals, Firestore sync, teardownApp)
+│   ├── landing.ts       # First-load signed-out marketing screen
+│   ├── login.ts         # Google / email+password / email-link / phone-OTP flows
+│   ├── firebase.ts      # Firebase app, Firestore (persistent cache), Auth init
+│   ├── markdown.ts      # renderMd (marked + DOMPurify), previewMd (regex)
+│   ├── ui.ts            # $(), esc(), date formatters, toast, theme toggle
+│   ├── types.ts         # Note / Tag / FilterType / SortOrder + display maps
+│   ├── style.css        # All app styles + theme variables
+│   ├── vite-env.d.ts
+│   └── assets/          # Images referenced from CSS/TS
+├── public/              # Static assets copied verbatim (favicon.svg, icons.svg)
+├── index.html           # Vite entry HTML — loads /src/main.ts
+├── firestore.rules      # Per-uid access rules for /notes/{noteId}
+├── firebase.json        # Hosting → dist/, firestore rules pointer
+├── .firebaserc          # Project id: my-notebook-web
+├── vite.config.ts       # Vite + vite-plugin-pwa config
+├── tsconfig.json        # Strict-ish TS, bundler resolution
+└── eslint.config.js     # Flat config: js + typescript-eslint recommended
+```
+
 ## Commands
 
 - `npm run dev` — Vite dev server (HMR)
