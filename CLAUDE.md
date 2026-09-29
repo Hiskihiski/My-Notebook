@@ -48,6 +48,8 @@ Unsaved new-note state is persisted to `localStorage["noteDraft"]` on every inpu
 
 ## PWA
 
+`firebase.json` sets a Content-Security-Policy plus X-Frame-Options/nosniff/Referrer-Policy/Permissions-Policy on `/` and `/index.html` only — never on `/**`, because Firebase serves the Google sign-in handler from `/__/auth/*` on our own domain and those headers would break it. Loading anything from a new external host (script, API, iframe, image host is already `https:`) means extending the CSP. Don't add `Cross-Origin-Opener-Policy` (breaks `signInWithPopup`) or `Referrer-Policy: no-referrer` (the API key's website restriction checks the referrer). `/assets/**` is cached for a year (hashed names); `index.html`, `sw.js`, `registerSW.js` and the manifest are `no-cache`.
+
 `vite-plugin-pwa` with `registerType: "autoUpdate"` generates a service worker. `navigateFallbackDenylist: [/^\/__/]` keeps Firebase Auth/Firestore endpoints out of the SW cache — don't broaden the precache glob to include those paths. Firestore itself uses `persistentLocalCache` + `persistentMultipleTabManager` in `src/firebase.ts` for offline reads.
 
 ## Conventions
