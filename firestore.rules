@@ -2,11 +2,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn()    { return request.auth != null; }
+    function validTitle(v) { return v is string && v.size() <= 200; }
+    function validBody(v)  { return v is string && v.size() <= 20000; }
+    function validTag(v)   { return v in ['work', 'ideas', 'personal']; }
+
     match /notes/{noteId} {
-      allow read, update, delete: if request.auth != null
-                                  && request.auth.uid == resource.data.uid;
-      allow create: if request.auth != null
-                    && request.auth.uid == request.resource.data.uid;
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+      allow read, delete: if signedIn() && request.auth.uid == resource.data.uid;
+
+      // Undo re-creates a deleted note with its original timestamps, so
+      // createdAt/updatedAt only need to be timestamps, not request.time.
+      allow create: if signedIn()
+        && noteId.matches('^[A-Za-z0-9]{20}$') // Firestore auto-IDs only
+        && request.resource.data.keys().hasAll(['uid', 'title', 'body', 'tag', 'pinned', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'title', 'body', 'tag', 'pinned', 'createdAt', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && validTitle(request.resource.data.title)
+        && validBody(request.resource.data.body)
+        && validTag(request.resource.data.tag)
+        && request.resource.data.pinned is bool
+        && request.resource.data.createdAt is timestamp
+        && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+
+      // Only these fields may change, so uid can never be reassigned. Fields
+      // that aren't touched aren't re-checked, so older notes stay editable.
+      allow update: if signedIn()
+        && request.auth.uid == resource.data.uid
+        && changed().hasOnly(['title', 'body', 'tag', 'pinned', 'updatedAt'])
+        && (!changed().hasAny(['title'])     || validTitle(request.resource.data.title))
+        && (!changed().hasAny(['body'])      || validBody(request.resource.data.body))
+        && (!changed().hasAny(['tag'])       || validTag(request.resource.data.tag))
+        && (!changed().hasAny(['pinned'])    || request.resource.data.pinned is bool)
+        && (!changed().hasAny(['updatedAt']) || request.resource.data.updatedAt is timestamp);
     }
 
     match /{document=**} {

@@ -207,21 +207,24 @@ function renderCards(): void {
     return;
   }
 
-  grid.innerHTML = list.map((n, i) => `
-    <div class="card" data-id="${n.id}" style="animation-delay:${Math.min(i, 8) * 45}ms">
+  grid.innerHTML = list.map((n, i) => {
+    const id = esc(n.id);
+    return `
+    <div class="card" data-id="${id}" style="animation-delay:${Math.min(i, 8) * 45}ms">
       <div class="card-actions">
-        <button class="card-btn card-pin${n.pinned ? " pinned" : ""}" data-id="${n.id}" title="${n.pinned ? "Unpin" : "Pin"}">${n.pinned ? "&#x2605;" : "&#x2606;"}</button>
-        <button class="card-btn card-edit" data-id="${n.id}" title="Edit">&#x270E;</button>
-        <button class="card-btn card-del"  data-id="${n.id}" title="Delete">&#x2715;</button>
+        <button class="card-btn card-pin${n.pinned ? " pinned" : ""}" data-id="${id}" title="${n.pinned ? "Unpin" : "Pin"}">${n.pinned ? "&#x2605;" : "&#x2606;"}</button>
+        <button class="card-btn card-edit" data-id="${id}" title="Edit">&#x270E;</button>
+        <button class="card-btn card-del"  data-id="${id}" title="Delete">&#x2715;</button>
       </div>
       <div class="ctitle">${esc(n.title)}</div>
       <div class="cbody">${previewMd(n.body)}</div>
       <div class="cmeta">
         <span class="cdate">${fmtCardDate(n)}</span>
-        <span class="ctag ${TC[n.tag] ?? "tw"}">${TL[n.tag] ?? n.tag}</span>
+        <span class="ctag ${TC[n.tag] ?? "tw"}">${TL[n.tag] ?? esc(String(n.tag))}</span>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 // ── View modal ─────────────────────────────────────────────────────────────────
