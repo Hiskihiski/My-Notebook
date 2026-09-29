@@ -328,11 +328,6 @@ nav{padding:10px 8px;flex:1}
 .lockout-msg{font-size:12px;color:#e07060;text-align:center;margin:6px 0;font-weight:500}
 .login-err{display:none;color:var(--err);font-size:13px;margin:0 auto 14px;max-width:280px;text-align:center}
 .otp-hint{font-size:12px;color:var(--text-m);margin:0 0 14px;text-align:center;line-height:1.5}
-/* The floating reCAPTCHA badge would cover the FAB. Hiding it is allowed as
-   long as the attribution below stays visible in the sign-in flow. */
-.grecaptcha-badge{visibility:hidden}
-.recaptcha-note{font-size:10.5px;color:var(--text-m);margin:18px auto 0;max-width:260px;line-height:1.5}
-.recaptcha-note a{color:inherit;text-decoration:underline}
 .link-sent-icon{font-size:38px;line-height:1;margin-bottom:12px}
 
 /* ── Toast ── */
