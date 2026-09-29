@@ -56,4 +56,5 @@ Unsaved new-note state is persisted to `localStorage["noteDraft"]` on every inpu
 - TS is strict-ish: `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`. Prefix intentionally-unused params with `_` (ESLint `argsIgnorePattern: "^_"`).
 - Theme variables are `--text-s/--text-m/--pin/--err` etc.; prefer them over hard-coded colors.
 - `@emailjs/browser` is listed in dependencies but currently unused in `src/`.
+- `firebase` is pinned to exactly `12.14.0`: from 12.15 on, Firestore bundles `re2js` (~56 kB gzip, unused here), growing the main chunk ~37%. Compare bundle size before raising the pin.
 - `.claude/skills/emil-design-eng/` is a vendored skill tracked by `skills-lock.json`; don't edit it by hand.
