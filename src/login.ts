@@ -1,7 +1,6 @@
 import {
   signInWithPopup, signInWithRedirect, signInWithEmailAndPassword,
-  sendSignInLinkToEmail, RecaptchaVerifier, signInWithPhoneNumber,
-  type ConfirmationResult,
+  sendSignInLinkToEmail,
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
@@ -48,7 +47,6 @@ export function renderLogin(root: HTMLElement): void {
             </svg>
             Continue with Google
           </button>
-          <button class="g-btn email-btn" id="phone-option-btn" style="margin-top:8px">&#x1F4F1; Continue with phone</button>
           <div class="or-row"><span>or</span></div>
           <input class="email-input" type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
           <button class="g-btn email-btn" id="continue-btn">Continue &#x2192;</button>
@@ -79,27 +77,6 @@ export function renderLogin(root: HTMLElement): void {
           <button class="back-link" id="resend-link" style="margin-top:8px">Resend link</button>
           <button class="back-link" id="back-from-link-sent">&#x2190; Use a different email</button>
         </div>
-
-        <div id="step-phone" style="display:none">
-          <p class="otp-hint" style="margin-bottom:10px">Enter your number with country code.</p>
-          <input class="email-input" type="tel" id="phone-input" placeholder="+1 234 567 8900"
-                 autocomplete="tel" inputmode="tel">
-          <button class="g-btn email-btn" id="send-code-btn" style="margin-top:8px">Send code &#x2192;</button>
-          <button class="back-link" id="back-from-phone">&#x2190; Use a different method</button>
-        </div>
-
-        <div id="step-phone-otp" style="display:none">
-          <div class="email-badge" id="badge-phone-otp"></div>
-          <p class="otp-hint">We sent a 6-digit code to your phone.<br>Check that the number is correct.</p>
-          <input class="email-input otp-input" type="text" id="phone-otp-input"
-                 placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-          <div class="otp-timer" id="phone-otp-timer"></div>
-          <button class="g-btn email-btn" id="verify-phone-btn">Verify &#x2192;</button>
-          <button class="back-link" id="resend-phone-otp" style="margin-top:8px">Resend code</button>
-          <button class="back-link" id="back-from-phone-otp">&#x2190; Change phone number</button>
-        </div>
-
-        <div id="recaptcha-container"></div>
       </div>
     </div>
   `;
@@ -109,45 +86,12 @@ export function renderLogin(root: HTMLElement): void {
   function hideErr(): void { errEl.style.display = "none"; }
 
   let currentEmail = "";
-  let currentPhone = "";
-  let phoneConfirmationResult: ConfirmationResult | null = null;
-  let recaptchaVerifier: RecaptchaVerifier | null = null;
-  let phoneTimerInterval: ReturnType<typeof setInterval> | null = null;
 
-  function showStep(step: "email" | "password" | "link-sent" | "phone" | "phone-otp"): void {
+  function showStep(step: "email" | "password" | "link-sent"): void {
     $("step-email").style.display     = step === "email"     ? "" : "none";
     $("step-password").style.display  = step === "password"  ? "" : "none";
     $("step-link-sent").style.display = step === "link-sent" ? "" : "none";
-    $("step-phone").style.display     = step === "phone"     ? "" : "none";
-    $("step-phone-otp").style.display = step === "phone-otp" ? "" : "none";
-    if (step !== "phone-otp" && phoneTimerInterval) { clearInterval(phoneTimerInterval); phoneTimerInterval = null; }
     hideErr();
-  }
-
-  function startPhoneOtpTimer(expiresAt: number): void {
-    if (phoneTimerInterval) clearInterval(phoneTimerInterval);
-    const timerEl = $("phone-otp-timer");
-    const verBtn  = $<HTMLButtonElement>("verify-phone-btn");
-    function tick(): void {
-      if (!timerEl.isConnected) { // login screen was torn down — stop ticking
-        if (phoneTimerInterval) { clearInterval(phoneTimerInterval); phoneTimerInterval = null; }
-        return;
-      }
-      const secs = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-      if (secs <= 0) {
-        timerEl.textContent = "Code expired — request a new one";
-        timerEl.style.color = "var(--err)";
-        verBtn.disabled = true;
-        if (phoneTimerInterval) { clearInterval(phoneTimerInterval); phoneTimerInterval = null; }
-      } else {
-        const m  = Math.floor(secs / 60);
-        const sc = secs % 60;
-        timerEl.textContent = `Expires in ${m}:${String(sc).padStart(2, "0")}`;
-        timerEl.style.color = secs < 60 ? "var(--err)" : "var(--text-m)";
-      }
-    }
-    tick();
-    phoneTimerInterval = setInterval(tick, 1000);
   }
 
   // ── Google ──────────────────────────────────────────────────────────────────
@@ -277,104 +221,4 @@ export function renderLogin(root: HTMLElement): void {
   });
 
   $("back-from-link-sent").addEventListener("click", () => showStep("email"));
-
-  // ── Phone ───────────────────────────────────────────────────────────────────
-  $("phone-option-btn").addEventListener("click", () => {
-    showStep("phone");
-    $<HTMLInputElement>("phone-input").focus();
-  });
-
-  $<HTMLInputElement>("phone-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") $<HTMLButtonElement>("send-code-btn").click();
-  });
-
-  $<HTMLButtonElement>("send-code-btn").addEventListener("click", async () => {
-    const phoneEl = $<HTMLInputElement>("phone-input");
-    const btn     = $<HTMLButtonElement>("send-code-btn");
-    const phone   = phoneEl.value.trim().replace(/\s/g, "");
-    hideErr();
-    if (!phone || !/^\+[1-9]\d{6,14}$/.test(phone)) {
-      showErr("Enter a valid phone number with country code (e.g. +1 234 567 8900).");
-      phoneEl.focus();
-      return;
-    }
-    currentPhone = phone;
-    btn.disabled = true; btn.textContent = "Sending…";
-    try {
-      if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-      recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
-      phoneConfirmationResult = await signInWithPhoneNumber(auth, currentPhone, recaptchaVerifier);
-      $<HTMLElement>("badge-phone-otp").textContent = currentPhone;
-      showStep("phone-otp");
-      startPhoneOtpTimer(Date.now() + 5 * 60 * 1000);
-      $<HTMLInputElement>("phone-otp-input").focus();
-    } catch (err: unknown) {
-      showErr(`Could not send code: ${(err as Error).message ?? "unknown"}`);
-      if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-    } finally {
-      btn.disabled = false; btn.textContent = "Send code →";
-    }
-  });
-
-  $<HTMLInputElement>("phone-otp-input").addEventListener("input", () => {
-    const el = $<HTMLInputElement>("phone-otp-input");
-    el.value = el.value.replace(/\D/g, "").slice(0, 6);
-  });
-  $<HTMLInputElement>("phone-otp-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") $<HTMLButtonElement>("verify-phone-btn").click();
-  });
-
-  $<HTMLButtonElement>("verify-phone-btn").addEventListener("click", async () => {
-    const smsCode = $<HTMLInputElement>("phone-otp-input").value.trim();
-    const btn     = $<HTMLButtonElement>("verify-phone-btn");
-    hideErr();
-    if (!/^\d{6}$/.test(smsCode)) { showErr("Enter the 6-digit code from your SMS."); return; }
-    if (!phoneConfirmationResult) { showErr("Session expired. Go back and try again."); return; }
-    btn.disabled = true; btn.textContent = "Verifying…";
-    try {
-      await phoneConfirmationResult.confirm(smsCode);
-    } catch (err: unknown) {
-      const errCode = (err as { code?: string }).code ?? "";
-      if (errCode === "auth/invalid-verification-code") {
-        showErr("Wrong code. Please try again.");
-      } else if (errCode === "auth/code-expired") {
-        showErr("Code expired. Request a new one.");
-        btn.disabled = true;
-      } else {
-        showErr(`Verification failed: ${(err as Error).message ?? "unknown"}`);
-      }
-      btn.disabled = false; btn.textContent = "Verify →";
-    }
-  });
-
-  $<HTMLButtonElement>("resend-phone-otp").addEventListener("click", async () => {
-    const btn = $<HTMLButtonElement>("resend-phone-otp");
-    hideErr(); btn.textContent = "Sending…";
-    try {
-      if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-      recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
-      phoneConfirmationResult = await signInWithPhoneNumber(auth, currentPhone, recaptchaVerifier);
-      startPhoneOtpTimer(Date.now() + 5 * 60 * 1000);
-      $<HTMLInputElement>("phone-otp-input").value = "";
-      $<HTMLButtonElement>("verify-phone-btn").disabled = false;
-      btn.textContent = "Sent!";
-      setTimeout(() => { btn.textContent = "Resend code"; }, 2500);
-    } catch (err: unknown) {
-      showErr(`Could not send code: ${(err as Error).message ?? "unknown"}`);
-      if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-      btn.textContent = "Resend code";
-    }
-  });
-
-  $("back-from-phone").addEventListener("click", () => {
-    showStep("email");
-    $<HTMLInputElement>("phone-input").value = "";
-    if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-  });
-
-  $("back-from-phone-otp").addEventListener("click", () => {
-    showStep("phone");
-    $<HTMLInputElement>("phone-otp-input").value = "";
-    phoneConfirmationResult = null;
-  });
 }

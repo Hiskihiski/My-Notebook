@@ -27,7 +27,7 @@ Single-page app, no framework. Everything is vanilla TS talking to Firebase dire
 
 **Entry & routing (`src/main.ts`)** — mounts to `#app` and listens on `onAuthStateChanged`. Three top-level screens, chosen by auth state:
 - `renderLanding` (first-load, signed-out) → marketing screen
-- `renderLogin` (subsequent signed-out) → Google / email+password / email-link / phone-OTP flows
+- `renderLogin` (subsequent signed-out) → Google / email+password / email-link flows
 - `renderApp` (signed-in) → the notebook UI
 
 The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the login screen rather than the landing page. `main.ts` also handles the email-link completion path (`isSignInWithEmailLink` → `signInWithEmailLink`), stripping the `oobCode` from the URL either way.
@@ -38,7 +38,7 @@ Notes are read via a live `onSnapshot` on `collection("notes") where uid == user
 
 Unsaved new-note state is persisted to `localStorage["noteDraft"]` on every input so a reload or accidental dismiss doesn't lose work. Drafts are only saved for **new** notes (not edits) and cleared on successful save.
 
-**Login (`src/login.ts`)** — one file with all five auth methods and a client-side brute-force guard (`bfMap`, 3 attempts → 60s lockout). The guard is UX only; Firebase enforces the real rate limit. The email-link flow writes `emailForSignIn` to `localStorage` so `main.ts` can complete the sign-in without re-prompting on the same device. Phone auth uses invisible `RecaptchaVerifier` bound to `#recaptcha-container`.
+**Login (`src/login.ts`)** — one file with all three auth methods and a client-side brute-force guard (`bfMap`, 3 attempts → 60s lockout). The guard is UX only; Firebase enforces the real rate limit. The email-link flow writes `emailForSignIn` to `localStorage` so `main.ts` can complete the sign-in without re-prompting on the same device. Phone/SMS sign-in was removed: it needs the paid Blaze plan (`BILLING_NOT_ENABLED` on Spark).
 
 **Data model (`src/types.ts`)** — `Note { id, uid, title, body, tag: "work"|"ideas"|"personal", pinned, createdAt, updatedAt? }`. `TC`/`TL`/`FL`/`SORT_LABELS` are the display maps; keep them in sync if tags change. `firestore.rules` enforces `resource.data.uid == request.auth.uid` for every op — new documents must include `uid` or the write is rejected.
 
