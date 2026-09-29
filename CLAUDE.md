@@ -12,8 +12,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` — `tsc` type-check then `vite build` into `dist/` (type errors fail the build)
 - `npm run preview` — serve the built `dist/` locally
 - `npm run lint` — ESLint (flat config, `typescript-eslint` recommended)
+- `npm test` — Vitest unit tests (`src/**/*.test.ts`, jsdom). Single file / test: `npx vitest run --project unit src/markdown.test.ts -t "javascript: links"`
+- `npm run test:rules` — Firestore rules tests (`tests/firestore.rules.test.ts`) against the emulator via `firebase emulators:exec` on the `demo-notebook` project (never real data). Needs the Firebase CLI and Java 21+.
 
-There is no test runner configured.
+`.github/workflows/ci.yml` runs lint, unit tests, build and the rules tests on every push to `main` and every PR. Any change to `firestore.rules` needs matching cases in the rules test; `src/types.test.ts` fails if the tag list in the rules and `TL`/`TC` drift apart. Unit tests only cover pure modules — `app.ts`/`firebase.ts` initialize Firebase on import, so pull testable logic out into a small module first (see `src/draft.ts`). `tsc` type-checks `src/` (including unit tests); `tests/` is only run by Vitest.
 
 Firebase Hosting is wired up (`firebase.json` → `dist/`, project `my-notebook-web` in `.firebaserc`); deploy with `firebase deploy` when needed.
 

@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast } from "./ui";
 import { renderMd, previewMd } from "./markdown";
+import { parseDraft } from "./draft";
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let notes:           Note[]                                = [];
@@ -353,18 +354,7 @@ function clearDraft(): void { if (draftKey) localStorage.removeItem(draftKey); }
 
 function loadDraft(): Draft | null {
   if (!draftKey) return null;
-  try {
-    const raw = localStorage.getItem(draftKey);
-    if (!raw) return null;
-    const d = JSON.parse(raw) as Partial<Draft>;
-    if (typeof d.title !== "string" || typeof d.body !== "string") return null;
-    return {
-      title:  d.title,
-      body:   d.body,
-      tag:    d.tag === "ideas" || d.tag === "personal" ? d.tag : "work",
-      pinned: d.pinned === true,
-    };
-  } catch { return null; }
+  try { return parseDraft(localStorage.getItem(draftKey)); } catch { return null; }
 }
 
 // ── Save note ─────────────────────────────────────────────────────────────────
