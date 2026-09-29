@@ -45,7 +45,7 @@ export function firstName(u: User): string {
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let toastUndo:  (() => void) | null                  = null;
 
-export function showToast(msg: string, undo?: () => void): void {
+export function showToast(msg: string, undo?: () => void, actionLabel = "Undo"): void {
   let el = document.getElementById("toast");
   if (!el) {
     el = document.createElement("div");
@@ -54,7 +54,7 @@ export function showToast(msg: string, undo?: () => void): void {
     document.body.appendChild(el);
   }
   toastUndo = undo ?? null;
-  el.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button id="toast-undo">Undo</button>` : ""}`;
+  el.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button id="toast-undo">${esc(actionLabel)}</button>` : ""}`;
   document.getElementById("toast-undo")?.addEventListener("click", () => {
     const fn = toastUndo;
     hideToast();

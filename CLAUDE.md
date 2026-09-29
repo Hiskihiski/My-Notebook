@@ -36,7 +36,9 @@ The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the
 
 Notes are read via a live `onSnapshot` on `collection("notes") where uid == user.uid`. Sorting is client-side: pinned notes always float to the top, then newest/oldest/A–Z. Deletes are optimistic-with-undo via a toast (see `deleteNote`) — the doc is deleted immediately and re-`addDoc`'d if Undo is pressed (this generates a *new* doc id).
 
-Unsaved new-note state is persisted to `localStorage["noteDraft"]` on every input so a reload or accidental dismiss doesn't lose work. Drafts are only saved for **new** notes (not edits) and cleared on successful save.
+Writes (`saveNote`, `deleteNote`) are **not awaited**: Firestore applies them to the local cache immediately (so `onSnapshot` updates the list) but only settles the promise once the server confirms, which never happens offline. The UI closes/confirms right away and only a `.catch` reports failures; keep new writes on that pattern or offline saves hang.
+
+Unsaved new-note state is persisted to `localStorage["noteDraft:<uid>"]` on every input so a reload or accidental dismiss doesn't lose work. Drafts are per user (the key is set in `renderApp`, reset in `teardownApp`), only saved for **new** notes, cleared when a save is issued and on explicit sign-out, and written back if a save is later rejected.
 
 **Login (`src/login.ts`)** — one file with all three auth methods and a client-side brute-force guard (`bfMap`, 3 attempts → 60s lockout). The guard is UX only; Firebase enforces the real rate limit. The email-link flow writes `emailForSignIn` to `localStorage` so `main.ts` can complete the sign-in without re-prompting on the same device. Phone/SMS sign-in was removed: it needs the paid Blaze plan (`BILLING_NOT_ENABLED` on Spark).
 

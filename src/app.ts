@@ -22,6 +22,7 @@ let unsubNotes:      (() => void) | null                   = null;
 let searchDebounce:  ReturnType<typeof setTimeout> | null  = null;
 let quoteTimer:      ReturnType<typeof setInterval> | null = null;
 let keyboardHandler: ((e: KeyboardEvent) => void) | null   = null;
+let draftKey:        string | null                         = null;
 
 // Called on every auth change (including sign-out) so listeners and timers
 // from a previous session never leak into the next render.
@@ -30,14 +31,22 @@ export function teardownApp(): void {
   if (quoteTimer) { clearInterval(quoteTimer); quoteTimer = null; }
   if (keyboardHandler) { document.removeEventListener("keydown", keyboardHandler); keyboardHandler = null; }
   hideToast();
-  viewId = null; editingId = null;
+  viewId = null; editingId = null; draftKey = null;
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
 }
+
+const SKELETONS =
+  `<div class="sk-card"><div class="sk-line t"></div><div class="sk-line b"></div><div class="sk-line b2"></div><div class="sk-line g"></div></div>`.repeat(6);
 
 // ── App shell ─────────────────────────────────────────────────────────────────
 export function renderApp(root: HTMLElement, user: User): void {
   const av   = esc(initials(user));
   const name = esc(firstName(user));
+
+  // Drafts are per user so the next person signing in on this browser never
+  // sees them. The old shared key can't be attributed to anyone, so drop it.
+  draftKey = `${DRAFT_KEY}:${user.uid}`;
+  localStorage.removeItem(DRAFT_KEY);
 
   root.innerHTML = `
     <div class="app">
@@ -102,9 +111,7 @@ export function renderApp(root: HTMLElement, user: User): void {
           </div>
         </div>
 
-        <div class="grid" id="grid">${
-          `<div class="sk-card"><div class="sk-line t"></div><div class="sk-line b"></div><div class="sk-line b2"></div><div class="sk-line g"></div></div>`.repeat(6)
-        }</div>
+        <div class="grid" id="grid">${SKELETONS}</div>
 
         <button class="fab" id="fab">+</button>
 
@@ -296,7 +303,6 @@ function openModal(id?: string): void {
 
 function closeModal(): void { $("ov").classList.remove("open"); editingId = null; }
 function clearModalError(): void { const e = $("err-msg"); e.textContent = ""; e.classList.remove("show"); }
-function showModalError(msg: string): void { const e = $("err-msg"); e.textContent = msg; e.classList.add("show"); }
 
 function updateWordCount(): void {
   const el = $("wcount");
@@ -316,36 +322,39 @@ function deleteNote(id: string): void {
     createdAt: n.createdAt ?? serverTimestamp(),
     ...(n.updatedAt ? { updatedAt: n.updatedAt } : {}),
   };
+  // The cache (and the list) updates immediately, but the promise only settles
+  // once the server confirms, which never happens offline, so don't wait on it.
   deleteDoc(doc(db, "notes", id))
-    .then(() => {
-      showToast("Note deleted", () => {
-        addDoc(collection(db, "notes"), restore).catch(console.error);
-      });
-    })
     .catch((err) => { console.error(err); showToast("Couldn't delete — try again"); });
+  showToast("Note deleted", () => {
+    addDoc(collection(db, "notes"), restore).catch(console.error);
+  });
 }
 
 // ── New-note draft (survives accidental dismiss / reload) ─────────────────────
+// Stored per user under `${DRAFT_KEY}:${uid}` (see renderApp).
 const DRAFT_KEY = "noteDraft";
 
 function saveDraft(): void {
-  if (editingId) return;
+  if (editingId || !draftKey) return;
   const title = $<HTMLInputElement>("nt").value;
   const body  = $<HTMLTextAreaElement>("nb").value;
-  if (!title.trim() && !body.trim()) { localStorage.removeItem(DRAFT_KEY); return; }
-  const draft: Draft = {
+  if (!title.trim() && !body.trim()) { localStorage.removeItem(draftKey); return; }
+  writeDraft(draftKey, {
     title, body,
     tag:    $<HTMLSelectElement>("ntag").value as Tag,
     pinned: $<HTMLInputElement>("npin").checked,
-  };
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  });
 }
 
-function clearDraft(): void { localStorage.removeItem(DRAFT_KEY); }
+function writeDraft(key: string, draft: Draft): void { localStorage.setItem(key, JSON.stringify(draft)); }
+
+function clearDraft(): void { if (draftKey) localStorage.removeItem(draftKey); }
 
 function loadDraft(): Draft | null {
+  if (!draftKey) return null;
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(draftKey);
     if (!raw) return null;
     const d = JSON.parse(raw) as Partial<Draft>;
     if (typeof d.title !== "string" || typeof d.body !== "string") return null;
@@ -359,34 +368,36 @@ function loadDraft(): Draft | null {
 }
 
 // ── Save note ─────────────────────────────────────────────────────────────────
-async function saveNote(user: User): Promise<void> {
+// Firestore applies the write to the local cache right away (onSnapshot shows
+// it) but only settles the promise once the server confirms, which never
+// happens offline. So close the dialog immediately and only report failures,
+// keeping the text as a draft so a rejected save doesn't lose it.
+function saveNote(user: User): void {
   const btn = $<HTMLButtonElement>("save-btn");
   if (btn.disabled) return; // save already in flight (double-click / Cmd+Enter)
   const title  = $<HTMLInputElement>("nt").value.trim().slice(0, 200) || "Untitled";
   const body   = $<HTMLTextAreaElement>("nb").value.trim().slice(0, 20000);
   const tag    = $<HTMLSelectElement>("ntag").value      as Tag;
   const pinned = $<HTMLInputElement>("npin").checked;
-  clearModalError();
-  btn.disabled = true; btn.textContent = "Saving…";
-  try {
-    if (editingId) {
-      await updateDoc(doc(db, "notes", editingId), { title, body, tag, pinned, updatedAt: serverTimestamp() });
-    } else {
-      await addDoc(collection(db, "notes"), {
-        uid: user.uid, title, body, tag, pinned, createdAt: serverTimestamp(),
-      });
-      clearDraft();
-    }
-    closeModal();
-  } catch (err) {
-    showModalError(`Failed to save: ${err instanceof Error ? err.message : "unknown"}`);
-    btn.textContent = editingId ? "Save" : "Add note";
-    btn.disabled = false;
-  }
+  btn.disabled = true;
+  const write = editingId
+    ? updateDoc(doc(db, "notes", editingId), { title, body, tag, pinned, updatedAt: serverTimestamp() })
+    : addDoc(collection(db, "notes"), { uid: user.uid, title, body, tag, pinned, createdAt: serverTimestamp() });
+  const key = draftKey;
+  if (!editingId) clearDraft();
+  closeModal();
+  if (!navigator.onLine) showToast("Saved offline — will sync when you're back online");
+  write.catch((err) => {
+    console.error(err);
+    if (!key || key !== draftKey) return; // a different user is signed in by now
+    writeDraft(key, { title, body, tag, pinned });
+    showToast("Couldn't save — your text is kept as a draft", () => openModal(), "Open");
+  });
 }
 
 // ── Firestore listener ────────────────────────────────────────────────────────
 function subscribeToNotes(user: User): void {
+  unsubNotes?.();
   const q = query(collection(db, "notes"), where("uid", "==", user.uid));
   unsubNotes = onSnapshot(
     q,
@@ -398,8 +409,22 @@ function subscribeToNotes(user: User): void {
       renderCards();
       refreshView();
     },
-    (err) => console.error("Firestore:", err),
+    (err) => { console.error("Firestore:", err); showLoadError(); },
   );
+}
+
+// The listener stops after an error, so offer a way to re-subscribe.
+function showLoadError(): void {
+  const el = $("note-count");
+  if (el) el.textContent = "Couldn't load notes";
+  const grid = $<HTMLDivElement>("grid");
+  if (!grid) return;
+  grid.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                     height:200px;color:var(--text-m);font-size:13px;gap:10px;grid-column:1/-1;text-align:center">
+       <span style="font-size:28px;opacity:.3">&#x26A0;&#xFE0F;</span>
+       Couldn't load your notes.
+       <button class="btn" id="notes-retry">Retry</button>
+     </div>`;
 }
 
 // ── Filter / sort ─────────────────────────────────────────────────────────────
@@ -438,6 +463,7 @@ function bindEvents(user: User): void {
   });
 
   function doSignOut(): void {
+    clearDraft(); // shared computers: don't leave unsaved text behind
     teardownApp();
     signOut(auth);
   }
@@ -471,7 +497,7 @@ function bindEvents(user: User): void {
 
   $("fab").addEventListener("click", () => openModal());
   $("cancel-btn").addEventListener("click", () => { if (!editingId) clearDraft(); closeModal(); });
-  $("save-btn").addEventListener("click", () => { saveNote(user).catch(console.error); });
+  $("save-btn").addEventListener("click", () => saveNote(user));
 
   $<HTMLTextAreaElement>("nb").addEventListener("input", () => { updateWordCount(); saveDraft(); });
   $<HTMLInputElement>("nt").addEventListener("input", saveDraft);
@@ -480,7 +506,7 @@ function bindEvents(user: User): void {
 
   $("ov").addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeModal();
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { saveNote(user).catch(console.error); }
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveNote(user);
   });
   $("ov").addEventListener("click", (e) => { if (e.target === $("ov")) closeModal(); });
 
@@ -504,6 +530,12 @@ function bindEvents(user: User): void {
 
   $<HTMLDivElement>("grid").addEventListener("click", (e) => {
     const t       = e.target as HTMLElement;
+    if (t.closest("#notes-retry")) {
+      $("grid").innerHTML = SKELETONS;
+      $("note-count").textContent = "Loading…";
+      subscribeToNotes(user);
+      return;
+    }
     const editBtn = t.closest<HTMLElement>(".card-edit");
     const delBtn  = t.closest<HTMLElement>(".card-del");
     const pinBtn  = t.closest<HTMLElement>(".card-pin");

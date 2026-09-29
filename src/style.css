@@ -264,6 +264,7 @@ nav{padding:10px 8px;flex:1}
 .view-body code{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--surface-3);padding:1px 5px;border-radius:4px;color:var(--text-s)}
 .view-body pre{background:var(--surface-3);border-radius:8px;padding:10px;margin:6px 0;overflow-x:auto}
 .view-body pre code{background:none;padding:0}
+.view-body img{display:block;max-width:100%;height:auto;border-radius:8px;margin:8px 0}
 .cbody b{font-weight:600} .cbody i{font-style:italic}
 .view-body::-webkit-scrollbar{width:4px}
 .view-body::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:4px}

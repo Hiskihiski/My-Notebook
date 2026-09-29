@@ -16,6 +16,7 @@ export function renderMd(raw: string): string {
 export function previewMd(raw: string): string {
   return raw
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "&#x1F5BC;&#xFE0F; $1")
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/\*(.+?)\*/g, "<i>$1</i>")
     .replace(/`(.+?)`/g, "$1")
