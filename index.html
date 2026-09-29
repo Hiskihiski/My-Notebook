@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Notebook — a calm, focused place for your thoughts. Markdown notes with tags, pinning, and instant search, synced across all your devices." />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f0f0ed" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0d10" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Notebook" />
+    <meta property="og:description" content="A calm, focused place for your thoughts — markdown notes with tags, pinning, and instant search." />
+    <meta property="og:site_name" content="Notebook" />
+    <title>Notebook</title>
+    <style>
+      /* Shown until the JS bundle loads; replaced by the app's first render. */
+      #app-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f0f0ed}
+      @media(prefers-color-scheme:dark){#app-loading{background:#0d0d10}}
+      #app-loading span{width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(128,128,128,.25);border-top-color:rgba(128,128,128,.75);animation:app-spin .7s linear infinite}
+      @keyframes app-spin{to{transform:rotate(360deg)}}
+    </style>
+  </head>
+  <body>
+    <div id="app"><div id="app-loading"><span></span></div></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
