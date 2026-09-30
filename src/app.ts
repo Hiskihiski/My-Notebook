@@ -6,7 +6,7 @@ import { signOut, type User } from "firebase/auth";
 import { auth, db } from "./firebase";
 import {
   type Note, type Tag, type FilterType, type SortOrder, type Draft,
-  TC, TL, FL, SORT_LABELS, QUOTES, toTag,
+  TL, FL, SORT_LABELS, QUOTES, toTag, tagClass, tagLabel,
 } from "./types";
 import {
   $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast, onBackdropClick,
@@ -228,7 +228,7 @@ function renderCards(): void {
       <div class="cbody">${previewMd(n.body)}</div>
       <div class="cmeta">
         <span class="cdate">${fmtCardDate(n)}</span>
-        <span class="ctag ${TC[n.tag] ?? "tw"}">${TL[n.tag] ?? esc(String(n.tag))}</span>
+        <span class="ctag ${tagClass(n.tag)}">${esc(tagLabel(n.tag))}</span>
       </div>
     </div>
   `;
@@ -240,8 +240,8 @@ function fillView(n: Note): void {
   $("view-title").textContent = n.title || "Untitled";
   $("view-body").innerHTML    = renderMd(n.body || "");
   const tagEl = $("view-tag");
-  tagEl.className = `ctag ${TC[n.tag] ?? "tw"}`;
-  tagEl.textContent = TL[n.tag] ?? n.tag;
+  tagEl.className = `ctag ${tagClass(n.tag)}`;
+  tagEl.textContent = tagLabel(n.tag);
   $("view-pin-badge").classList.toggle("show", n.pinned);
   const pinBtn = $<HTMLButtonElement>("view-pin-btn");
   pinBtn.innerHTML = n.pinned ? "&#x2605; Pinned" : "&#x2606; Pin";
@@ -431,7 +431,7 @@ function updateNavCounts(): void {
   const counts: Record<string, number> = { all: notes.length, pinned: 0, work: 0, ideas: 0, personal: 0 };
   for (const n of notes) {
     if (n.pinned) counts.pinned++;
-    if (counts[n.tag] !== undefined) counts[n.tag]++;
+    if (Object.hasOwn(TL, n.tag)) counts[n.tag]++; // not a legacy "pinned"/"all" tag
   }
   document.querySelectorAll<HTMLElement>(".ncount").forEach((el) => {
     el.textContent = String(counts[el.dataset.count ?? ""] ?? 0);
