@@ -1,6 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import type { Note } from "./types";
+import { store } from "./storage";
 
 // ── DOM / text helpers ────────────────────────────────────────────────────────
 export function $<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -94,7 +95,7 @@ export function hideToast(): void {
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 export function initTheme(): void {
-  const saved = localStorage.getItem("theme");
+  const saved = store.get("theme");
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   document.documentElement.dataset.theme = saved === "dark" || saved === "light"
     ? saved
@@ -111,7 +112,7 @@ function toggleTheme(): void {
   html.classList.add("theme-changing");
   const next = isDark() ? "light" : "dark";
   html.dataset.theme = next;
-  localStorage.setItem("theme", next);
+  store.set("theme", next);
   updateThemeIcon();
   setTimeout(() => html.classList.remove("theme-changing"), 300);
 }

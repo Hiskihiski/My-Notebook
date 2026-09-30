@@ -62,6 +62,7 @@ Unsaved new-note state is persisted to `localStorage["noteDraft:<uid>"]` on ever
 
 - Any user-supplied string interpolated into a template literal must go through `esc()`; note bodies must go through `renderMd`/`previewMd`, never raw interpolation.
 - TS is strict-ish: `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`. Prefix intentionally-unused params with `_` (ESLint `argsIgnorePattern: "^_"`).
+- Go through `store` (`src/storage.ts`) rather than `localStorage` directly: `localStorage` throws when the browser blocks site data, which used to stop the app from starting.
 - Theme variables are `--text-s/--text-m/--pin/--err` etc.; prefer them over hard-coded colors.
 - `@emailjs/browser` is listed in dependencies but currently unused in `src/`.
 - `firebase` is pinned to exactly `12.14.0`: from 12.15 on, Firestore bundles `re2js` (~56 kB gzip, unused here), growing the main chunk ~37%. Compare bundle size before raising the pin.
