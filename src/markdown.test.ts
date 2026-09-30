@@ -68,6 +68,17 @@ describe("previewMd", () => {
     expect(previewMd("- [ ] todo\n[] empty\n[not a link]")).toBe("[ ] todo\n[] empty\n[not a link]");
   });
 
+  it("keeps * bullets apart from emphasis on the same line", () => {
+    expect(previewMd("* one *two*\n* **three** four")).toBe("one <i>two</i>\n<b>three</b> four");
+  });
+
+  it("doesn't treat spaced asterisks as emphasis, like the full view", () => {
+    expect(previewMd("2 * 3 = 6 and 4 * 5 = 20")).toBe("2 * 3 = 6 and 4 * 5 = 20");
+    expect(previewMd("a ** b ** c")).toBe("a ** b ** c");
+    expect(previewMd("***both***")).toBe("<i><b>both</b></i>");
+    expect(renderMd("2 * 3 = 6 and 4 * 5 = 20")).not.toContain("<em>");
+  });
+
   it("strips blockquote markers but keeps comparisons", () => {
     expect(previewMd("> quoted\n>tight\n2 > 1")).toBe("quoted\ntight\n2 &gt; 1");
   });
