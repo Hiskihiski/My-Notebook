@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { initTheme } from "./ui";
+import { store } from "./storage";
 import { renderLanding } from "./landing";
 import { renderLogin, showLoginError, clearLoginError, EMAIL_FOR_SIGN_IN_KEY } from "./login";
 import { renderApp, teardownApp } from "./app";
@@ -13,7 +14,7 @@ let isFirstAuthLoad = true;
 
 // Completes passwordless sign-in when the page is opened from an emailed link.
 async function completeEmailLinkSignIn(): Promise<void> {
-  let email = localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
+  let email = store.get(EMAIL_FOR_SIGN_IN_KEY);
   if (!email) {
     // Link was opened on a different device/browser than the one that requested it.
     // Trimmed: mobile keyboards add a space after an autocompleted address.
@@ -22,7 +23,7 @@ async function completeEmailLinkSignIn(): Promise<void> {
   try {
     if (!email) throw new Error("Email confirmation cancelled.");
     await signInWithEmailLink(auth, email, window.location.href);
-    localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+    store.remove(EMAIL_FOR_SIGN_IN_KEY);
   } catch (err: unknown) {
     // Already signed in (an old link opened again): nothing to report.
     if (!auth.currentUser) showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);

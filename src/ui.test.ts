@@ -3,7 +3,7 @@ import type { Timestamp } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import type { Note } from "./types";
 import {
-  esc, fmtDate, fmtCardDate, initials, firstName, onBackdropClick, showToast, hideToast,
+  esc, fmtDate, fmtCardDate, initials, firstName, onBackdropClick, showToast, hideToast, initTheme,
 } from "./ui";
 
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) }) as unknown as Timestamp;
@@ -125,6 +125,37 @@ describe("onBackdropClick", () => {
     expect(fn).not.toHaveBeenCalled();
     press(ov, ov);
     expect(fn).toHaveBeenCalledOnce();
+  });
+});
+
+describe("theme", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    delete document.documentElement.dataset.theme;
+    window.matchMedia = vi.fn(() => ({ matches: true })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
+
+  it("uses the saved theme, else the system one, and remembers a toggle", () => {
+    localStorage.setItem("theme", "light");
+    initTheme();
+    expect(document.documentElement.dataset.theme).toBe("light");
+    document.getElementById("theme-toggle")!.click();
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("theme")).toBe("dark");
+
+    localStorage.setItem("theme", "<bogus>");
+    initTheme();
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.querySelectorAll("#theme-toggle")).toHaveLength(1);
+  });
+
+  it("still works when the browser blocks site data", () => {
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("denied", "SecurityError"); });
+    expect(() => initTheme()).not.toThrow();
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(() => document.getElementById("theme-toggle")!.click()).not.toThrow();
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 });
 

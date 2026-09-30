@@ -172,6 +172,26 @@ describe("keyboard", () => {
   });
 });
 
+describe("with site data blocked", () => {
+  // Browsers with cookies/site data disabled throw on any localStorage access.
+  beforeEach(() => {
+    teardownApp();
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("denied", "SecurityError"); });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("still starts, and saves a note", () => {
+    expect(() => renderApp(root, alice)).not.toThrow();
+    send(note());
+    expect(cardIds()).toEqual(["n1"]);
+    el("fab").click();
+    type("nt", "Idea");
+    el("save-btn").click();
+    expect(addDoc).toHaveBeenCalledOnce();
+    expect(isOpen("ov")).toBe(false);
+  });
+});
+
 describe("teardownApp", () => {
   it("leaves no listener, timer or shortcut behind", () => {
     type("search-input", "milk"); // arms the search debounce

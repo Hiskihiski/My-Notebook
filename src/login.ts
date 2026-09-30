@@ -5,6 +5,7 @@ import {
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
 import { bruteForceGuard } from "./bruteforce";
+import { store } from "./storage";
 
 // localStorage key the email-link completion step (main.ts) reads back.
 export const EMAIL_FOR_SIGN_IN_KEY = "emailForSignIn";
@@ -205,7 +206,7 @@ export function renderLogin(root: HTMLElement): void {
       handleCodeInApp: true,
     });
     // Remembered so the link can be completed without re-typing the email.
-    localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, email);
+    store.set(EMAIL_FOR_SIGN_IN_KEY, email);
     $<HTMLElement>("badge-link-sent").textContent = email;
     showStep("link-sent");
   }

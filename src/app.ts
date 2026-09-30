@@ -13,6 +13,7 @@ import {
 } from "./ui";
 import { renderMd, previewMd } from "./markdown";
 import { parseDraft } from "./draft";
+import { store } from "./storage";
 import { TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, visibleNotes } from "./notes";
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export function renderApp(root: HTMLElement, user: User): void {
   // Drafts are per user so the next person signing in on this browser never
   // sees them. The old shared key can't be attributed to anyone, so drop it.
   draftKey = `${DRAFT_KEY}:${user.uid}`;
-  localStorage.removeItem(DRAFT_KEY);
+  store.remove(DRAFT_KEY);
 
   root.innerHTML = `
     <div class="app">
@@ -330,7 +331,7 @@ function saveDraft(): void {
   if (editingId || !draftKey) return;
   const title = $<HTMLInputElement>("nt").value;
   const body  = $<HTMLTextAreaElement>("nb").value;
-  if (!title.trim() && !body.trim()) { localStorage.removeItem(draftKey); return; }
+  if (!title.trim() && !body.trim()) { store.remove(draftKey); return; }
   writeDraft(draftKey, {
     title, body,
     tag:    $<HTMLSelectElement>("ntag").value as Tag,
@@ -338,13 +339,12 @@ function saveDraft(): void {
   });
 }
 
-function writeDraft(key: string, draft: Draft): void { localStorage.setItem(key, JSON.stringify(draft)); }
+function writeDraft(key: string, draft: Draft): void { store.set(key, JSON.stringify(draft)); }
 
-function clearDraft(): void { if (draftKey) localStorage.removeItem(draftKey); }
+function clearDraft(): void { if (draftKey) store.remove(draftKey); }
 
 function loadDraft(): Draft | null {
-  if (!draftKey) return null;
-  try { return parseDraft(localStorage.getItem(draftKey)); } catch { return null; }
+  return draftKey ? parseDraft(store.get(draftKey)) : null;
 }
 
 // ── Save note ─────────────────────────────────────────────────────────────────
