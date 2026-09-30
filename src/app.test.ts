@@ -75,6 +75,13 @@ describe("note list", () => {
     expect(cardIds()).toEqual(["ok", "bad"]);
   });
 
+  it("sorts A–Z the way people count", () => {
+    send(note({ id: "10", title: "Note 10" }), note({ id: "2", title: "note 2" }), note({ id: "1", title: "Note 1" }), note({ id: "a", title: "apple" }));
+    el("sort-btn").click(); // oldest
+    el("sort-btn").click(); // A–Z
+    expect(cardIds()).toEqual(["a", "1", "2", "10"]);
+  });
+
   it("filters as you type in the search box", () => {
     send(note({ id: "a", title: "Groceries" }), note({ id: "b", title: "Taxes", body: "receipts" }));
     type("search-input", "  RECEIPTS ");
@@ -88,8 +95,22 @@ describe("editing", () => {
     send(note({ tag: "misc" }));
     document.querySelector<HTMLElement>(".card-edit")!.click();
     expect(el<HTMLSelectElement>("ntag").value).toBe("work");
+    type("nt", "Groceries!");
     el("save-btn").click();
-    expect(updateDoc).toHaveBeenCalledWith({ id: "n1" }, expect.objectContaining({ tag: "work", title: "Groceries" }));
+    expect(updateDoc).toHaveBeenCalledWith({ id: "n1" }, expect.objectContaining({ tag: "work", title: "Groceries!" }));
+  });
+
+  it("doesn't write, or mark the note edited, when Save changes nothing", () => {
+    send(note({ tag: "misc" }));
+    document.querySelector<HTMLElement>(".card-edit")!.click();
+    el("save-btn").click();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(isOpen("ov")).toBe(false);
+
+    document.querySelector<HTMLElement>(".card-edit")!.click();
+    type("nb", "milk, eggs");
+    el("save-btn").click();
+    expect(updateDoc).toHaveBeenCalledOnce();
   });
 
   it("keeps the dialog open when a text selection is dragged onto the backdrop", () => {

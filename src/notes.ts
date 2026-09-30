@@ -47,7 +47,7 @@ export function visibleNotes(notes: Note[], filter: FilterType, search: string, 
     .sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (sort === "oldest") return millis(a.createdAt) - millis(b.createdAt);
-      if (sort === "az")     return a.title.localeCompare(b.title);
+      if (sort === "az")     return a.title.localeCompare(b.title, undefined, { numeric: true }); // 2 before 10
       return millis(b.createdAt) - millis(a.createdAt);
     });
 }

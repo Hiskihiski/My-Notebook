@@ -28,6 +28,7 @@ let searchDebounce:  ReturnType<typeof setTimeout> | null  = null;
 let quoteTimer:      ReturnType<typeof setInterval> | null = null;
 let keyboardHandler: ((e: KeyboardEvent) => void) | null   = null;
 let draftKey:        string | null                         = null;
+let editStart:       string | null                         = null;
 
 // Called on every auth change (including sign-out) so listeners and timers
 // from a previous session never leak into the next render.
@@ -37,7 +38,7 @@ export function teardownApp(): void {
   if (searchDebounce) { clearTimeout(searchDebounce); searchDebounce = null; }
   if (keyboardHandler) { document.removeEventListener("keydown", keyboardHandler); keyboardHandler = null; }
   hideToast();
-  viewId = null; editingId = null; draftKey = null;
+  viewId = null; editingId = null; draftKey = null; editStart = null;
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
 }
 
@@ -282,6 +283,7 @@ function openModal(id?: string): void {
     $("modal-title").textContent = "Edit note";
     saveBtn.textContent          = "Save";
     ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = toTag(n.tag); npinEl.checked = n.pinned;
+    editStart = formState();
   } else {
     $("modal-title").textContent = "New note";
     saveBtn.textContent          = "Add note";
@@ -296,7 +298,16 @@ function openModal(id?: string): void {
   setTimeout(() => ntEl.focus(), 210);
 }
 
-function closeModal(): void { $("ov").classList.remove("open"); editingId = null; }
+function closeModal(): void { $("ov").classList.remove("open"); editingId = null; editStart = null; }
+
+// The form's values as one comparable string, so a Save that changes nothing
+// can skip the write instead of marking the note edited.
+function formState(): string {
+  return JSON.stringify([
+    $<HTMLInputElement>("nt").value, $<HTMLTextAreaElement>("nb").value,
+    $<HTMLSelectElement>("ntag").value, $<HTMLInputElement>("npin").checked,
+  ]);
+}
 function clearModalError(): void { const e = $("err-msg"); e.textContent = ""; e.classList.remove("show"); }
 
 function updateWordCount(): void {
@@ -355,6 +366,7 @@ function loadDraft(): Draft | null {
 function saveNote(user: User): void {
   const btn = $<HTMLButtonElement>("save-btn");
   if (btn.disabled) return; // save already in flight (double-click / Cmd+Enter)
+  if (editingId && formState() === editStart) { closeModal(); return; }
   const title  = clip($<HTMLInputElement>("nt").value.trim(), TITLE_MAX) || "Untitled";
   const body   = clip($<HTMLTextAreaElement>("nb").value.trim(), BODY_MAX);
   const tag    = $<HTMLSelectElement>("ntag").value      as Tag;
