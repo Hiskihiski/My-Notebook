@@ -69,6 +69,28 @@ describe("screen routing", () => {
     expect(m.renderLanding).not.toHaveBeenCalled();
   });
 
+  it("shows a failed Google redirect on the login screen, not the landing page", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    m.getRedirectResult.mockRejectedValue(new Error("redirect failed"));
+    await start();
+    authChanged(null);
+    expect(m.renderLogin).toHaveBeenCalledOnce();
+    expect(m.renderLanding).not.toHaveBeenCalled();
+  });
+
+  it("switches from the landing page when the redirect fails after it's shown", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let reject!: (e: Error) => void;
+    m.getRedirectResult.mockReturnValue(new Promise((_r, rj) => { reject = rj; }));
+    m.renderLanding.mockImplementation((root: HTMLElement) => { root.innerHTML = `<div class="landing"></div>`; });
+    await start();
+    authChanged(null);
+    expect(m.renderLanding).toHaveBeenCalledOnce();
+    reject(new Error("redirect failed"));
+    await flush();
+    expect(m.renderLogin).toHaveBeenCalledWith(document.getElementById("app"));
+  });
+
   it("reports an interrupted redirect sign-in only to a signed-out user", async () => {
     m.getRedirectResult.mockRejectedValue(new Error("network"));
     vi.spyOn(console, "error").mockImplementation(() => {});
