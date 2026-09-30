@@ -26,6 +26,29 @@ describe("renderMd", () => {
   it("neutralizes javascript: links", () => {
     expect(renderMd("[click](javascript:alert(1))")).not.toMatch(/javascript:/i);
   });
+
+  it("opens web links in a new tab without handing over the app window", () => {
+    const html = renderMd('[docs](https://example.com) <a href="http://x.y" target="_top">t</a>');
+    expect(html).toContain('<a href="https://example.com" target="_blank" rel="noopener noreferrer">docs</a>');
+    expect(html).toContain('<a href="http://x.y" target="_blank" rel="noopener noreferrer">t</a>');
+    expect(renderMd("[mail](mailto:a@x.com)")).toBe('<p><a href="mailto:a@x.com">mail</a></p>\n');
+  });
+
+  it("prefixes ids and names so a note can't take over the app's elements", () => {
+    const html = renderMd('<div id="toast">x</div><a name="view-edit">y</a>');
+    expect(html).toContain('id="user-content-toast"');
+    expect(html).toContain('name="user-content-view-edit"');
+  });
+
+  it("drops forms, keeping their content, so Enter can't navigate the app away", () => {
+    const html = renderMd('<form action="/x"><input name="q"></form>');
+    expect(html).not.toContain("<form");
+    expect(html).toContain("<input");
+  });
+
+  it("keeps task-list checkboxes", () => {
+    expect(renderMd("- [x] done")).toContain('<input checked="" disabled="" type="checkbox">');
+  });
 });
 
 describe("previewMd", () => {
