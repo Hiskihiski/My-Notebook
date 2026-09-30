@@ -8,7 +8,7 @@ vi.mock("firebase/auth", () => ({
 }));
 
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { renderLogin } from "./login";
+import { renderLogin, showLoginError, clearLoginError } from "./login";
 
 const el = <T extends HTMLElement = HTMLInputElement>(id: string) => document.getElementById(id) as T;
 // The click handlers are async; let their awaited (mocked) calls settle.
@@ -83,6 +83,33 @@ describe("login lockout", () => {
     root.innerHTML = "<div>notebook</div>"; // e.g. signed in with Google meanwhile
     expect(() => vi.advanceTimersByTime(2000)).not.toThrow();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("showLoginError", () => {
+  const errText = () => el("login-err").style.display === "block" ? el("login-err").textContent : null;
+
+  it("shows the error straight away when the login screen is up", () => {
+    showLoginError("Link expired");
+    expect(errText()).toBe("Link expired");
+  });
+
+  it("keeps an error raised before the screen exists for the next one, once", () => {
+    root.innerHTML = "<div>landing</div>";
+    showLoginError("Sign-in was interrupted");
+    expect(vi.getTimerCount()).toBe(0); // no polling for the element
+    renderLogin(root);
+    expect(errText()).toBe("Sign-in was interrupted");
+    renderLogin(root);
+    expect(errText()).toBeNull();
+  });
+
+  it("drops a pending error once the user is signed in", () => {
+    root.innerHTML = "<div>notebook</div>";
+    showLoginError("Link expired");
+    clearLoginError();
+    renderLogin(root);
+    expect(errText()).toBeNull();
   });
 });
 

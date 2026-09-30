@@ -18,6 +18,19 @@ function stopLockoutTimer(): void {
   if (lockoutTimer) { clearInterval(lockoutTimer); lockoutTimer = null; }
 }
 
+// A failed email link or redirect can finish before the login screen is up;
+// its error then waits for the next renderLogin.
+let pendingError: string | null = null;
+
+export function showLoginError(msg: string): void {
+  const el = document.getElementById("login-err");
+  if (el) { el.textContent = msg; el.style.display = "block"; }
+  else pendingError = msg;
+}
+
+// Called on sign-in, so a stale error doesn't greet the user at sign-out.
+export function clearLoginError(): void { pendingError = null; }
+
 // ── Login screen ──────────────────────────────────────────────────────────────
 export function renderLogin(root: HTMLElement): void {
   stopLockoutTimer();
@@ -80,6 +93,7 @@ export function renderLogin(root: HTMLElement): void {
   const errEl = $("login-err");
   function showErr(msg: string): void { errEl.textContent = msg; errEl.style.display = "block"; }
   function hideErr(): void { errEl.style.display = "none"; }
+  if (pendingError) { showErr(pendingError); pendingError = null; }
 
   let currentEmail = "";
 
