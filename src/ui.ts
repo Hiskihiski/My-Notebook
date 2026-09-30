@@ -107,6 +107,10 @@ function isDark(): boolean {
   return document.documentElement.dataset.theme === "dark";
 }
 
+// One timer, restarted per toggle: an earlier toggle's timer would otherwise
+// cut a quick second toggle's colour fade short.
+let themeFadeTimer: ReturnType<typeof setTimeout> | null = null;
+
 function toggleTheme(): void {
   const html = document.documentElement;
   html.classList.add("theme-changing");
@@ -114,7 +118,8 @@ function toggleTheme(): void {
   html.dataset.theme = next;
   store.set("theme", next);
   updateThemeIcon();
-  setTimeout(() => html.classList.remove("theme-changing"), 300);
+  if (themeFadeTimer) clearTimeout(themeFadeTimer);
+  themeFadeTimer = setTimeout(() => { html.classList.remove("theme-changing"); themeFadeTimer = null; }, 300);
 }
 
 function renderThemeToggle(): void {

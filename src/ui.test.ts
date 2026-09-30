@@ -150,6 +150,21 @@ describe("theme", () => {
     expect(document.querySelectorAll("#theme-toggle")).toHaveLength(1);
   });
 
+  it("keeps the colour transition running through quick repeated toggles", () => {
+    vi.useFakeTimers();
+    initTheme();
+    const html = document.documentElement;
+    const btn = document.getElementById("theme-toggle")!;
+    btn.click();
+    vi.advanceTimersByTime(200);
+    btn.click();
+    vi.advanceTimersByTime(150); // 350ms after the first click, 150ms into the second fade
+    expect(html.classList.contains("theme-changing")).toBe(true);
+    vi.advanceTimersByTime(150);
+    expect(html.classList.contains("theme-changing")).toBe(false);
+    vi.useRealTimers();
+  });
+
   it("still works when the browser blocks site data", () => {
     vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("denied", "SecurityError"); });
     expect(() => initTheme()).not.toThrow();
