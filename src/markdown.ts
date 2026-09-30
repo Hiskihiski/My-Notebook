@@ -22,12 +22,14 @@ const LINK  = new RegExp(String.raw`\[([^\]]+)\]` + DEST, "g");
 export function previewMd(raw: string): string {
   return raw
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(IMAGE, "&#x1F5BC;&#xFE0F; $1")
-    .replace(LINK, "$1")
-    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
-    .replace(/\*(.+?)\*/g, "<i>$1</i>")
-    .replace(/`(.+?)`/g, "$1")
+    // Line markers first, so a "* " bullet can't pair up with an emphasis star.
     .replace(/^#{1,6} /gm, "")
     .replace(/^&gt; ?/gm, "")
-    .replace(/^[-*] /gm, "");
+    .replace(/^[-*] /gm, "")
+    .replace(IMAGE, "&#x1F5BC;&#xFE0F; $1")
+    .replace(LINK, "$1")
+    // As in CommonMark, emphasis can't start or end next to a space ("2 * 3").
+    .replace(/\*\*([^\s*](?:.*?[^\s*])?)\*\*/g, "<b>$1</b>")
+    .replace(/\*([^\s*](?:.*?[^\s*])?)\*/g, "<i>$1</i>")
+    .replace(/`(.+?)`/g, "$1");
 }
