@@ -4,31 +4,23 @@ import {
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
+import { bruteForceGuard } from "./bruteforce";
 
 // localStorage key the email-link completion step (main.ts) reads back.
 export const EMAIL_FOR_SIGN_IN_KEY = "emailForSignIn";
 
-// ── Brute-force guard (client-side UX only — Firebase enforces real limits) ──
-const bfMap = new Map<string, { count: number; lockedUntil: number }>();
+// Lockouts outlive the screen (back to the landing page and in again), the
+// countdown timer doesn't: there's at most one, for the address on screen.
+const bf = bruteForceGuard();
 let lockoutTimer: ReturnType<typeof setInterval> | null = null;
 
-function bfSecondsLeft(email: string): number {
-  const e = bfMap.get(email);
-  if (!e || e.lockedUntil <= Date.now()) return 0;
-  return Math.ceil((e.lockedUntil - Date.now()) / 1000);
+function stopLockoutTimer(): void {
+  if (lockoutTimer) { clearInterval(lockoutTimer); lockoutTimer = null; }
 }
-function bfFail(email: string): boolean {
-  const e = bfMap.get(email) ?? { count: 0, lockedUntil: 0 };
-  e.count++;
-  if (e.count >= 3) { e.lockedUntil = Date.now() + 60_000; e.count = 0; }
-  bfMap.set(email, e);
-  return e.lockedUntil > Date.now();
-}
-function bfReset(email: string): void { bfMap.delete(email); }
-function bfCount(email: string): number { return bfMap.get(email)?.count ?? 0; }
 
 // ── Login screen ──────────────────────────────────────────────────────────────
 export function renderLogin(root: HTMLElement): void {
+  stopLockoutTimer();
   root.innerHTML = `
     <div class="login-wrap">
       <div class="login-box">
@@ -101,6 +93,8 @@ export function renderLogin(root: HTMLElement): void {
   // ── Google ──────────────────────────────────────────────────────────────────
   $<HTMLButtonElement>("google-signin").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("google-signin");
+    const label = btn.innerHTML; // keeps the Google logo, which textContent would drop
+    const resetBtn = (): void => { btn.disabled = false; btn.innerHTML = label; };
     btn.disabled = true; btn.textContent = "Signing in…";
     hideErr();
     try {
@@ -110,13 +104,13 @@ export function renderLogin(root: HTMLElement): void {
       if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
         signInWithRedirect(auth, gProvider).catch((e: unknown) => {
           showErr((e as Error).message ?? "Sign-in failed");
-          btn.disabled = false; btn.textContent = "Continue with Google";
+          resetBtn();
         });
       } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        btn.disabled = false; btn.textContent = "Continue with Google";
+        resetBtn();
       } else {
         showErr(`Sign-in failed: ${(err as Error).message ?? code}`);
-        btn.disabled = false; btn.textContent = "Continue with Google";
+        resetBtn();
       }
     }
   });
@@ -129,7 +123,7 @@ export function renderLogin(root: HTMLElement): void {
     if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr("Enter a valid email address."); emailEl.focus(); return; }
     currentEmail = email;
     $<HTMLElement>("badge-password").textContent = email;
-    updateDots(email);
+    updateDots();
     showStep("password");
     $<HTMLInputElement>("pw-input").focus();
   });
@@ -138,13 +132,21 @@ export function renderLogin(root: HTMLElement): void {
     if (e.key === "Enter") $<HTMLButtonElement>("continue-btn").click();
   });
 
-  function updateDots(email: string): void {
-    const count = bfCount(email);
-    for (let i = 1; i <= 3; i++) $(`dot-${i}`).classList.toggle("used", i <= count);
-    const secs = bfSecondsLeft(email);
+  // Shows the attempts and lockout for the address on screen, and keeps the
+  // countdown ticking only while that address is locked and the screen is up.
+  function updateDots(): void {
     const lockEl = $("lockout-msg");
-    if (secs > 0) { lockEl.style.display = ""; lockEl.textContent = `Too many attempts. Try again in ${secs}s.`; }
-    else lockEl.style.display = "none";
+    if (!lockEl) { stopLockoutTimer(); return; } // login screen is gone
+    const count = bf.count(currentEmail);
+    for (let i = 1; i <= 3; i++) $(`dot-${i}`).classList.toggle("used", i <= count);
+    const secs = bf.secondsLeft(currentEmail);
+    if (secs > 0) {
+      lockEl.style.display = ""; lockEl.textContent = `Too many attempts. Try again in ${secs}s.`;
+      lockoutTimer ??= setInterval(updateDots, 1000);
+    } else {
+      lockEl.style.display = "none";
+      stopLockoutTimer();
+    }
   }
 
   $<HTMLButtonElement>("signin-btn").addEventListener("click", async () => {
@@ -152,24 +154,20 @@ export function renderLogin(root: HTMLElement): void {
     const btn   = $<HTMLButtonElement>("signin-btn");
     const email = currentEmail;
     hideErr();
-    if (bfSecondsLeft(email) > 0) { showErr(`Locked out. Try again in ${bfSecondsLeft(email)}s.`); return; }
+    if (bf.secondsLeft(email) > 0) { showErr(`Locked out. Try again in ${bf.secondsLeft(email)}s.`); return; }
     const pw = pwEl.value;
     if (!pw) { showErr("Enter your password."); pwEl.focus(); return; }
     btn.disabled = true; btn.textContent = "Signing in…";
     try {
       await signInWithEmailAndPassword(auth, email, pw);
-      bfReset(email);
-      if (lockoutTimer) { clearInterval(lockoutTimer); lockoutTimer = null; }
+      bf.reset(email);
+      stopLockoutTimer();
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/wrong-password" || code === "auth/invalid-credential" || code === "auth/user-not-found") {
-        const locked = bfFail(email);
-        updateDots(email);
+        const locked = bf.fail(email);
+        updateDots();
         if (locked) {
-          lockoutTimer = setInterval(() => {
-            updateDots(email);
-            if (bfSecondsLeft(email) <= 0) { clearInterval(lockoutTimer!); lockoutTimer = null; }
-          }, 1000);
           showErr("Too many failed attempts. Locked for 1 minute.");
         } else {
           showErr("Wrong password — or this account has no password. You can use the sign-in link instead.");
