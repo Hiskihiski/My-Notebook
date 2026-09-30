@@ -152,9 +152,9 @@ export function renderLogin(root: HTMLElement): void {
   function updateDots(): void {
     const lockEl = $("lockout-msg");
     if (!lockEl) { stopLockoutTimer(); return; } // login screen is gone
-    const count = bf.count(currentEmail);
+    const secs  = bf.secondsLeft(currentEmail);
+    const count = secs > 0 ? 3 : bf.count(currentEmail); // the count restarts at lockout
     for (let i = 1; i <= 3; i++) $(`dot-${i}`).classList.toggle("used", i <= count);
-    const secs = bf.secondsLeft(currentEmail);
     if (secs > 0) {
       lockEl.style.display = ""; lockEl.textContent = `Too many attempts. Try again in ${secs}s.`;
       lockoutTimer ??= setInterval(updateDots, 1000);
@@ -226,14 +226,15 @@ export function renderLogin(root: HTMLElement): void {
 
   $<HTMLButtonElement>("resend-link").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("resend-link");
-    hideErr(); btn.textContent = "Sending…";
+    // Disabled until "Sent!" clears, so a double-click doesn't send two emails.
+    hideErr(); btn.disabled = true; btn.textContent = "Sending…";
     try {
       await doSendLink(currentEmail);
       btn.textContent = "Sent!";
-      setTimeout(() => { btn.textContent = "Resend link"; }, 2500);
+      setTimeout(() => { btn.textContent = "Resend link"; btn.disabled = false; }, 2500);
     } catch (err: unknown) {
       showErr(`Could not send link: ${(err as Error).message ?? "unknown"}`);
-      btn.textContent = "Resend link";
+      btn.textContent = "Resend link"; btn.disabled = false;
     }
   });
 
