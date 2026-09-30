@@ -143,6 +143,21 @@ describe("delete and undo", () => {
   });
 });
 
+describe("note view", () => {
+  it("doesn't let HTML ids in a note hijack the app's toast or date", () => {
+    send(note({ id: "html", body: '<div id="toast"></div><span id="view-date"></span>', createdAt: ts(Date.now()) }), note({ id: "other" }));
+    document.querySelector<HTMLElement>('.card[data-id="html"]')!.click();
+    expect(el("view-date").closest("#view-body")).toBeNull();
+    expect(el("view-date").textContent).toBe("Created Just now");
+    key(document, { key: "Escape" });
+
+    document.querySelector<HTMLElement>('.card-del[data-id="other"]')!.click();
+    expect(el("toast").closest("#view-body")).toBeNull();
+    expect(el("toast").classList.contains("show")).toBe(true);
+    expect(el("toast-undo")).not.toBeNull();
+  });
+});
+
 describe("keyboard", () => {
   it("Escape closes the note view, then nothing else", () => {
     send(note());
