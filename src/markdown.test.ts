@@ -48,4 +48,27 @@ describe("previewMd", () => {
   it("strips headings, bullets and inline code markers", () => {
     expect(previewMd("# Title\n- item\n`code`")).toBe("Title\nitem\ncode");
   });
+
+  it("shows a link's text instead of its Markdown", () => {
+    expect(previewMd("See [the docs](https://example.com/a_(b)) and [**this**](https://x.y \"T\").")).toBe(
+      "See the docs and <b>this</b>.",
+    );
+    expect(previewMd("[click](javascript:alert(1))")).toBe("click");
+  });
+
+  it("handles parentheses in picture addresses", () => {
+    expect(previewMd("![map](https://example.com/Foo_(bar).png) done")).toBe("&#x1F5BC;&#xFE0F; map done");
+  });
+
+  it("escapes link text", () => {
+    expect(previewMd("[<img src=x onerror=alert(1)>](https://x.y)")).toBe("&lt;img src=x onerror=alert(1)&gt;");
+  });
+
+  it("leaves brackets that aren't links alone", () => {
+    expect(previewMd("- [ ] todo\n[] empty\n[not a link]")).toBe("[ ] todo\n[] empty\n[not a link]");
+  });
+
+  it("strips blockquote markers but keeps comparisons", () => {
+    expect(previewMd("> quoted\n>tight\n2 > 1")).toBe("quoted\ntight\n2 &gt; 1");
+  });
 });
