@@ -8,7 +8,9 @@ import {
   type Note, type Tag, type FilterType, type SortOrder, type Draft,
   TC, TL, FL, SORT_LABELS, QUOTES, toTag,
 } from "./types";
-import { $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast } from "./ui";
+import {
+  $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast, onBackdropClick,
+} from "./ui";
 import { renderMd, previewMd } from "./markdown";
 import { parseDraft } from "./draft";
 import { TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, visibleNotes } from "./notes";
@@ -485,10 +487,10 @@ function bindEvents(user: User): void {
     if (e.key === "Escape") closeModal();
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveNote(user);
   });
-  $("ov").addEventListener("click", (e) => { if (e.target === $("ov")) closeModal(); });
+  onBackdropClick($("ov"), closeModal);
 
   $("view-close").addEventListener("click", closeView);
-  $("ov-view").addEventListener("click", (e) => { if (e.target === $("ov-view")) closeView(); });
+  onBackdropClick($("ov-view"), closeView);
   $("view-edit").addEventListener("click", () => {
     const id = viewId;
     closeView();

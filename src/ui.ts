@@ -18,7 +18,10 @@ export function fmtDate(ts: Timestamp | null | undefined): string {
   if (d < 3_600_000)   return `${Math.floor(d / 60_000)}m ago`;
   if (d < 86_400_000)  return `${Math.floor(d / 3_600_000)}h ago`;
   if (d < 172_800_000) return "Yesterday";
-  return ts.toDate().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const date = ts.toDate();
+  // Older than this year: add the year, or last June reads like this June.
+  const year = date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } as const : {};
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", ...year });
 }
 
 export function fmtCardDate(n: Note): string {
@@ -28,17 +31,35 @@ export function fmtCardDate(n: Note): string {
   return fmtDate(n.createdAt);
 }
 
+// First character by code point, so an emoji isn't cut in half.
+const firstChar = (s?: string | null): string => [...(s ?? "")][0] ?? "";
+
+// A display name can be all whitespace, so fall back to the email when the
+// name has no words rather than rendering "UNDEFINED".
+function nameWords(u: User): string[] {
+  return u.displayName?.trim().split(/\s+/).filter(Boolean) ?? [];
+}
+
 export function initials(u: User): string {
-  if (u.displayName) {
-    const p = u.displayName.trim().split(/\s+/);
-    return (p[0][0] + (p[1]?.[0] ?? "")).toUpperCase();
-  }
-  return (u.email?.[0] ?? "?").toUpperCase();
+  const p = nameWords(u);
+  if (p.length) return (firstChar(p[0]) + firstChar(p[1])).toUpperCase();
+  return firstChar(u.email).toUpperCase() || "?";
 }
 
 export function firstName(u: User): string {
-  if (u.displayName) return u.displayName.trim().split(/\s+/)[0];
-  return u.email?.split("@")[0] ?? "User";
+  return nameWords(u)[0] || u.email?.split("@")[0] || "User";
+}
+
+// Closes on a click that starts *and* ends on the backdrop. Selecting text in
+// the dialog and letting go outside it fires click on the backdrop too, which
+// used to throw away the edit.
+export function onBackdropClick(el: HTMLElement, fn: () => void): void {
+  let downOnBackdrop = false;
+  el.addEventListener("mousedown", (e) => { downOnBackdrop = e.target === el; });
+  el.addEventListener("click", (e) => {
+    if (e.target === el && downOnBackdrop) fn();
+    downOnBackdrop = false;
+  });
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
