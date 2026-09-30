@@ -428,6 +428,14 @@ describe("keyboard", () => {
     expect(isOpen("ov")).toBe(true);
     expect(el("modal-title").textContent).toBe("New note");
   });
+
+  it("Cmd/Ctrl+N works with Caps Lock on, but leaves Ctrl+Shift+N to the browser", () => {
+    const shifted = key(document, { key: "N", ctrlKey: true, shiftKey: true });
+    expect(shifted).toBe(true); // not prevented
+    expect(isOpen("ov")).toBe(false);
+    key(document, { key: "N", metaKey: true });
+    expect(isOpen("ov")).toBe(true);
+  });
 });
 
 describe("with site data blocked", () => {

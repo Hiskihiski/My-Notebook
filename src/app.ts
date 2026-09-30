@@ -564,7 +564,8 @@ function bindEvents(user: User): void {
       const si = $<HTMLInputElement>("search-input");
       if (si && document.activeElement === si && si.value) { clearSearch(); return; }
     }
-    if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+    // Either case (Caps Lock), but not with Shift: Ctrl/Cmd+Shift+N is the browser's.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "n") {
       e.preventDefault();
       if (!editOpen && !viewOpen) openModal();
       return;
