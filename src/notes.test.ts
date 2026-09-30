@@ -74,6 +74,12 @@ describe("visibleNotes", () => {
     expect(ids(visibleNotes(all, "all", "", "az"))).toEqual(["c", "b", "a"]);
   });
 
+  it("sorts numbers in titles by value under A–Z", () => {
+    const t = (id: string, title: string) => note({ id, title });
+    expect(ids(visibleNotes([t("10", "Week 10"), t("2", "week 2"), t("1", "Week 1")], "all", "", "az")))
+      .toEqual(["1", "2", "10"]);
+  });
+
   it("puts notes without a date last under Newest and first under Oldest", () => {
     const legacy = note({ id: "l", createdAt: null });
     expect(ids(visibleNotes([legacy, a, b], "all", "", "newest"))).toEqual(["b", "a", "l"]);
