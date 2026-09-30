@@ -9,6 +9,8 @@ import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc,
   Timestamp, updateDoc, where, type Firestore,
 } from "firebase/firestore";
+import { TITLE_MAX, clip, restoreData, toNote } from "../src/notes";
+import { toTag } from "../src/types";
 
 let env: RulesTestEnvironment;
 
@@ -23,6 +25,10 @@ const note = (over: Record<string, unknown> = {}) => ({
 
 const ALICE_NOTE = "AliceNote00000000001";
 const LEGACY_NOTE = "LegacyNote0000000001";
+// Written by an older app version: bad tag, long title, extra field, no createdAt.
+const LEGACY_DATA = {
+  uid: "alice", title: "x".repeat(300), body: "old", tag: "misc", pinned: false, color: "red",
+};
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -37,10 +43,7 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const admin = ctx.firestore() as unknown as Firestore;
     await setDoc(doc(admin, "notes", ALICE_NOTE), { ...note(), createdAt: Timestamp.now() });
-    // Written by an older app version: bad tag, long title, extra field.
-    await setDoc(doc(admin, "notes", LEGACY_NOTE), {
-      uid: "alice", title: "x".repeat(300), body: "old", tag: "misc", pinned: false, color: "red",
-    });
+    await setDoc(doc(admin, "notes", LEGACY_NOTE), LEGACY_DATA);
   });
 });
 
@@ -59,6 +62,14 @@ describe("notes: allowed", () => {
     assertSucceeds(getDocs(query(collection(db("alice"), "notes"), where("uid", "==", "alice")))));
   it("pin a legacy note", () => assertSucceeds(updateDoc(doc(db("alice"), "notes", LEGACY_NOTE), { pinned: true })));
   it("delete a legacy note", () => assertSucceeds(deleteDoc(doc(db("alice"), "notes", LEGACY_NOTE))));
+  it("undo: re-create a legacy note", () =>
+    assertSucceeds(addDoc(collection(db("alice"), "notes"), restoreData(toNote(LEGACY_NOTE, LEGACY_DATA)))));
+  it("save a legacy note from the edit form", () => {
+    const n = toNote(LEGACY_NOTE, LEGACY_DATA);
+    return assertSucceeds(updateDoc(doc(db("alice"), "notes", LEGACY_NOTE), {
+      title: clip(n.title, TITLE_MAX), body: n.body, tag: toTag(n.tag), pinned: n.pinned, updatedAt: serverTimestamp(),
+    }));
+  });
 });
 
 describe("notes: denied", () => {
@@ -84,4 +95,6 @@ describe("notes: denied", () => {
   it("another user deletes the note", () => assertFails(deleteDoc(doc(db("bob"), "notes", ALICE_NOTE))));
   it("signed-out user reads a note", () => assertFails(getDoc(doc(db(), "notes", ALICE_NOTE))));
   it("write to another collection", () => assertFails(addDoc(collection(db("alice"), "other"), { a: 1 })));
+  it("undo: re-create a legacy note as stored", () =>
+    assertFails(addDoc(collection(db("alice"), "notes"), { ...LEGACY_DATA, createdAt: serverTimestamp() })));
 });

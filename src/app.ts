@@ -6,11 +6,12 @@ import { signOut, type User } from "firebase/auth";
 import { auth, db } from "./firebase";
 import {
   type Note, type Tag, type FilterType, type SortOrder, type Draft,
-  TC, TL, FL, SORT_LABELS, QUOTES,
+  TC, TL, FL, SORT_LABELS, QUOTES, toTag,
 } from "./types";
 import { $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast } from "./ui";
 import { renderMd, previewMd } from "./markdown";
 import { parseDraft } from "./draft";
+import { TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, visibleNotes } from "./notes";
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let notes:           Note[]                                = [];
@@ -121,8 +122,8 @@ export function renderApp(root: HTMLElement, user: User): void {
           <div class="modal">
             <h3 id="modal-title">New note</h3>
             <div class="err-msg" id="err-msg"></div>
-            <input  type="text" id="nt" placeholder="Title" maxlength="200">
-            <textarea           id="nb" placeholder="Write something&#x2026;" maxlength="20000"></textarea>
+            <input  type="text" id="nt" placeholder="Title" maxlength="${TITLE_MAX}">
+            <textarea           id="nb" placeholder="Write something&#x2026;" maxlength="${BODY_MAX}"></textarea>
             <div class="wcount" id="wcount"></div>
             <select             id="ntag">
               <option value="work">Work</option>
@@ -183,21 +184,10 @@ function renderCards(): void {
   const grid = $<HTMLDivElement>("grid");
   if (!grid) return;
 
-  const filtered = notes.filter((n) =>
-    (filter === "pinned" ? n.pinned : filter === "all" ? true : n.tag === filter) &&
-    (!searchQuery || `${n.title} ${n.body}`.toLowerCase().includes(searchQuery))
-  );
-
-  // Pinned notes always float to top, then sort by chosen order
-  const list = [...filtered].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    if (sortOrder === "oldest") return (a.createdAt?.toMillis() ?? 0) - (b.createdAt?.toMillis() ?? 0);
-    if (sortOrder === "az")     return a.title.localeCompare(b.title);
-    return (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0);
-  });
+  const list = visibleNotes(notes, filter, searchQuery, sortOrder);
 
   if (!list.length) {
-    const firstTime = notes.length === 0 && filter === "all" && !searchQuery;
+    const firstTime = notes.length === 0 && filter === "all" && !searchQuery.trim();
     grid.innerHTML = firstTime
       ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
                      height:240px;gap:10px;grid-column:1/-1;text-align:center">
@@ -274,6 +264,8 @@ function refreshView(): void {
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
 function openModal(id?: string): void {
+  const n = id ? notes.find((x) => x.id === id) : undefined;
+  if (id && !n) return; // deleted meanwhile (e.g. in another tab)
   editingId = id ?? null;
   const ntEl   = $<HTMLInputElement>("nt");
   const nbEl   = $<HTMLTextAreaElement>("nb");
@@ -282,12 +274,10 @@ function openModal(id?: string): void {
   clearModalError();
   const saveBtn = $<HTMLButtonElement>("save-btn");
   saveBtn.disabled = false;
-  if (id) {
-    const n = notes.find((x) => x.id === id);
-    if (!n) return;
+  if (n) {
     $("modal-title").textContent = "Edit note";
     saveBtn.textContent          = "Save";
-    ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = n.tag; npinEl.checked = n.pinned;
+    ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = toTag(n.tag); npinEl.checked = n.pinned;
   } else {
     $("modal-title").textContent = "New note";
     saveBtn.textContent          = "Add note";
@@ -318,17 +308,14 @@ function updateWordCount(): void {
 function deleteNote(id: string): void {
   const n = notes.find(x => x.id === id);
   if (!n) return;
-  const restore = {
-    uid: n.uid, title: n.title, body: n.body, tag: n.tag, pinned: n.pinned,
-    createdAt: n.createdAt ?? serverTimestamp(),
-    ...(n.updatedAt ? { updatedAt: n.updatedAt } : {}),
-  };
+  const restore = restoreData(n);
   // The cache (and the list) updates immediately, but the promise only settles
   // once the server confirms, which never happens offline, so don't wait on it.
   deleteDoc(doc(db, "notes", id))
     .catch((err) => { console.error(err); showToast("Couldn't delete — try again"); });
   showToast("Note deleted", () => {
-    addDoc(collection(db, "notes"), restore).catch(console.error);
+    addDoc(collection(db, "notes"), restore)
+      .catch((err) => { console.error(err); showToast("Couldn't restore the note"); });
   });
 }
 
@@ -365,8 +352,8 @@ function loadDraft(): Draft | null {
 function saveNote(user: User): void {
   const btn = $<HTMLButtonElement>("save-btn");
   if (btn.disabled) return; // save already in flight (double-click / Cmd+Enter)
-  const title  = $<HTMLInputElement>("nt").value.trim().slice(0, 200) || "Untitled";
-  const body   = $<HTMLTextAreaElement>("nb").value.trim().slice(0, 20000);
+  const title  = clip($<HTMLInputElement>("nt").value.trim(), TITLE_MAX) || "Untitled";
+  const body   = clip($<HTMLTextAreaElement>("nb").value.trim(), BODY_MAX);
   const tag    = $<HTMLSelectElement>("ntag").value      as Tag;
   const pinned = $<HTMLInputElement>("npin").checked;
   btn.disabled = true;
@@ -392,7 +379,7 @@ function subscribeToNotes(user: User): void {
   unsubNotes = onSnapshot(
     q,
     (snap) => {
-      notes = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Note, "id">) }));
+      notes = snap.docs.map(noteFromSnapshot);
       const el = $("note-count");
       if (el) el.textContent = `Free · ${notes.length} note${notes.length !== 1 ? "s" : ""}`;
       updateNavCounts();
@@ -475,7 +462,7 @@ function bindEvents(user: User): void {
     renderCards();
   }
   $<HTMLInputElement>("search-input").addEventListener("input", (e) => {
-    searchQuery = (e.target as HTMLInputElement).value.toLowerCase();
+    searchQuery = (e.target as HTMLInputElement).value;
     syncSearchUI();
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(renderCards, 120);
