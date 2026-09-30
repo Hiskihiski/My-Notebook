@@ -6,19 +6,10 @@ import {
 import { auth } from "./firebase";
 import { initTheme } from "./ui";
 import { renderLanding } from "./landing";
-import { renderLogin, EMAIL_FOR_SIGN_IN_KEY } from "./login";
+import { renderLogin, showLoginError, clearLoginError, EMAIL_FOR_SIGN_IN_KEY } from "./login";
 import { renderApp, teardownApp } from "./app";
 
 let isFirstAuthLoad = true;
-
-function showLoginError(msg: string): void {
-  const show = (): void => {
-    const el = document.getElementById("login-err");
-    if (el) { el.textContent = msg; el.style.display = "block"; }
-    else setTimeout(show, 100);
-  };
-  show();
-}
 
 // Completes passwordless sign-in when the page is opened from an emailed link.
 async function completeEmailLinkSignIn(): Promise<void> {
@@ -32,7 +23,8 @@ async function completeEmailLinkSignIn(): Promise<void> {
     await signInWithEmailLink(auth, email, window.location.href);
     localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
   } catch (err: unknown) {
-    showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);
+    // Already signed in (an old link opened again): nothing to report.
+    if (!auth.currentUser) showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);
   } finally {
     // Strip the oobCode etc. from the address bar either way.
     window.history.replaceState(null, "", window.location.pathname);
@@ -54,7 +46,7 @@ function startApp(): void {
 
   getRedirectResult(auth).catch((err: unknown) => {
     console.error("getRedirectResult:", err);
-    showLoginError("Sign-in was interrupted — please try again.");
+    if (!auth.currentUser) showLoginError("Sign-in was interrupted — please try again.");
   });
 
   onAuthStateChanged(auth, (user) => {
@@ -62,6 +54,7 @@ function startApp(): void {
     const firstLoad = isFirstAuthLoad;
     isFirstAuthLoad = false;
     if (user) {
+      clearLoginError();
       renderApp(root, user);
     } else if (firstLoad) {
       renderLanding(root);
