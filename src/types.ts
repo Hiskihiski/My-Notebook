@@ -19,6 +19,12 @@ export interface Draft { title: string; body: string; tag: Tag; pinned: boolean 
 
 export const TC: Record<Tag, string>        = { work: "tw", ideas: "ti", personal: "tp" };
 export const TL: Record<Tag, string>        = { work: "Work", ideas: "Ideas", personal: "Personal" };
+// Tags an older app version wrote (or a hand-edited draft holds) can't be
+// saved again, so the edit form falls back to "work" for them.
+export function toTag(v: unknown): Tag {
+  return typeof v === "string" && Object.hasOwn(TL, v) ? v as Tag : "work";
+}
+
 export const FL: Record<FilterType, string> = {
   all: "All Notes", pinned: "Pinned",
   work: "Work", ideas: "Ideas", personal: "Personal",
