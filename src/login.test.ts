@@ -7,7 +7,7 @@ vi.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: vi.fn(), sendSignInLinkToEmail: vi.fn(),
 }));
 
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { sendSignInLinkToEmail, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { renderLogin, showLoginError, clearLoginError } from "./login";
 
 const el = <T extends HTMLElement = HTMLInputElement>(id: string) => document.getElementById(id) as T;
@@ -58,6 +58,14 @@ describe("login lockout", () => {
     expect(el("login-err").textContent).toMatch(/^Locked out/);
   });
 
+  it("shows every attempt used while locked", async () => {
+    await lockOut("used@example.com");
+    const used = [1, 2, 3].map((i) => el(`dot-${i}`).classList.contains("used"));
+    expect(used).toEqual([true, true, true]);
+    vi.advanceTimersByTime(60_000);
+    expect(el("dot-1").classList.contains("used")).toBe(false);
+  });
+
   it("counts down and stops its timer once unlocked", async () => {
     await lockOut("grace@example.com");
     vi.advanceTimersByTime(30_000);
@@ -83,6 +91,28 @@ describe("login lockout", () => {
     root.innerHTML = "<div>notebook</div>"; // e.g. signed in with Google meanwhile
     expect(() => vi.advanceTimersByTime(2000)).not.toThrow();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("email sign-in link", () => {
+  it("sends one link however fast Resend is clicked", async () => {
+    vi.mocked(sendSignInLinkToEmail).mockReset().mockResolvedValue();
+    enterEmail("new@example.com");
+    el("send-link-btn").click();
+    await flush();
+    expect(el("step-link-sent").style.display).toBe("");
+    expect(localStorage.getItem("emailForSignIn")).toBe("new@example.com");
+
+    el("resend-link").click();
+    el("resend-link").click();
+    await flush();
+    expect(sendSignInLinkToEmail).toHaveBeenCalledTimes(2); // first send + one resend
+    expect(el("resend-link").textContent).toBe("Sent!");
+    vi.advanceTimersByTime(2500);
+    expect(el("resend-link").textContent).toBe("Resend link");
+    el("resend-link").click();
+    await flush();
+    expect(sendSignInLinkToEmail).toHaveBeenCalledTimes(3);
   });
 });
 
