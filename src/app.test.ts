@@ -82,6 +82,22 @@ describe("note list", () => {
     expect(cardIds()).toEqual(["a", "1", "2", "10"]);
   });
 
+  it("shows tags an older version wrote by name, without miscounting them", () => {
+    send(note({ id: "m", tag: "misc" }), note({ id: "c", tag: "constructor" }), note({ id: "p", tag: "pinned" }), note({ id: "x", tag: "<b>x</b>" }));
+    const tag = (id: string) => document.querySelector(`.card[data-id="${id}"] .ctag`)!;
+    expect(tag("m").textContent).toBe("misc");
+    expect(tag("m").className).toBe("ctag tw");
+    expect(tag("c").textContent).toBe("constructor");
+    expect(tag("c").className).toBe("ctag tw");
+    expect(tag("x").textContent).toBe("<b>x</b>");
+    expect(document.querySelector('[data-count="pinned"]')!.textContent).toBe("0");
+    expect(document.querySelector('[data-count="all"]')!.textContent).toBe("4");
+
+    document.querySelector<HTMLElement>('.card[data-id="c"]')!.click();
+    expect(el("view-tag").textContent).toBe("constructor");
+    expect(el("view-tag").className).toBe("ctag tw");
+  });
+
   it("filters as you type in the search box", () => {
     send(note({ id: "a", title: "Groceries" }), note({ id: "b", title: "Taxes", body: "receipts" }));
     type("search-input", "  RECEIPTS ");

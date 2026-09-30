@@ -19,11 +19,18 @@ export interface Draft { title: string; body: string; tag: Tag; pinned: boolean 
 
 export const TC: Record<Tag, string>        = { work: "tw", ideas: "ti", personal: "tp" };
 export const TL: Record<Tag, string>        = { work: "Work", ideas: "Ideas", personal: "Personal" };
+const isTag = (v: unknown): v is Tag => typeof v === "string" && Object.hasOwn(TL, v);
+
 // Tags an older app version wrote (or a hand-edited draft holds) can't be
 // saved again, so the edit form falls back to "work" for them.
 export function toTag(v: unknown): Tag {
-  return typeof v === "string" && Object.hasOwn(TL, v) ? v as Tag : "work";
+  return isTag(v) ? v : "work";
 }
+
+// How a stored tag is shown. Unknown ones keep their name and the work color;
+// hasOwn keeps a tag like "constructor" from reading Object.prototype.
+export const tagClass = (t: string): string => isTag(t) ? TC[t] : "tw";
+export const tagLabel = (t: string): string => isTag(t) ? TL[t] : t;
 
 export const FL: Record<FilterType, string> = {
   all: "All Notes", pinned: "Pinned",
