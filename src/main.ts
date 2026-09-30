@@ -16,7 +16,8 @@ async function completeEmailLinkSignIn(): Promise<void> {
   let email = localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
   if (!email) {
     // Link was opened on a different device/browser than the one that requested it.
-    email = window.prompt("Confirm your email to finish signing in:");
+    // Trimmed: mobile keyboards add a space after an autocompleted address.
+    email = window.prompt("Confirm your email to finish signing in:")?.trim() || null;
   }
   try {
     if (!email) throw new Error("Email confirmation cancelled.");
