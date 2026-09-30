@@ -3,7 +3,7 @@ import {
   sendSignInLinkToEmail,
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
-import { $ } from "./ui";
+import { $, logoMark } from "./ui";
 
 // localStorage key the email-link completion step (main.ts) reads back.
 export const EMAIL_FOR_SIGN_IN_KEY = "emailForSignIn";
@@ -32,7 +32,7 @@ export function renderLogin(root: HTMLElement): void {
   root.innerHTML = `
     <div class="login-wrap">
       <div class="login-box">
-        <div class="login-icon">&#x1F4D3;</div>
+        <div class="login-icon">${logoMark()}</div>
         <h1>Notebook</h1>
         <p>Sign in or create an account</p>
         <div class="login-err" id="login-err"></div>

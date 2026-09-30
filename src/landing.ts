@@ -1,4 +1,5 @@
 import { renderLogin } from "./login";
+import { logoMark } from "./ui";
 
 const FEATURES = [
   { icon: "✎", title: "Markdown", desc: "Bold, italic, lists — lightweight formatting that stays out of your way." },
@@ -11,7 +12,7 @@ export function renderLanding(root: HTMLElement): void {
   root.innerHTML = `
     <div class="landing">
       <main class="landing-inner">
-        <div class="landing-mark">📓</div>
+        <div class="landing-mark">${logoMark()}</div>
         <h1 class="landing-title">Notebook</h1>
         <p class="landing-tagline">
           A calm, focused place for your thoughts — markdown notes with tags,

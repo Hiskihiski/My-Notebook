@@ -8,7 +8,7 @@ import {
   type Note, type Tag, type FilterType, type SortOrder, type Draft,
   TC, TL, FL, SORT_LABELS, QUOTES,
 } from "./types";
-import { $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast } from "./ui";
+import { $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast, logoMark } from "./ui";
 import { renderMd, previewMd } from "./markdown";
 import { parseDraft } from "./draft";
 
@@ -24,6 +24,8 @@ let searchDebounce:  ReturnType<typeof setTimeout> | null  = null;
 let quoteTimer:      ReturnType<typeof setInterval> | null = null;
 let keyboardHandler: ((e: KeyboardEvent) => void) | null   = null;
 let draftKey:        string | null                         = null;
+// Note ids the grid has already shown; only unseen ones play the entrance animation.
+let seenIds                                                = new Set<string>();
 
 // Called on every auth change (including sign-out) so listeners and timers
 // from a previous session never leak into the next render.
@@ -34,6 +36,7 @@ export function teardownApp(): void {
   hideToast();
   viewId = null; editingId = null; draftKey = null;
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
+  seenIds = new Set();
 }
 
 const SKELETONS =
@@ -183,6 +186,14 @@ function renderCards(): void {
   const grid = $<HTMLDivElement>("grid");
   if (!grid) return;
 
+  // The grid is rebuilt on every search keystroke, filter, pin and snapshot,
+  // so only notes it hasn't shown before animate in, and only the first paint
+  // staggers. Notes hidden by a filter count as shown: revealing them later
+  // isn't new content. Undo re-adds under a new id, so a restored note animates.
+  const seenBefore = seenIds;
+  const firstPaint = seenBefore.size === 0;
+  seenIds = new Set(notes.map((n) => n.id));
+
   const filtered = notes.filter((n) =>
     (filter === "pinned" ? n.pinned : filter === "all" ? true : n.tag === filter) &&
     (!searchQuery || `${n.title} ${n.body}`.toLowerCase().includes(searchQuery))
@@ -201,7 +212,7 @@ function renderCards(): void {
     grid.innerHTML = firstTime
       ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
                      height:240px;gap:10px;grid-column:1/-1;text-align:center">
-           <span style="font-size:40px;opacity:.2">&#x1F4D3;</span>
+           <span style="width:44px;height:44px;opacity:.2">${logoMark()}</span>
            <div style="font-size:15px;font-weight:500;color:var(--text-s)">Your notebook is empty</div>
            <div style="font-size:12px;color:var(--text-m);line-height:1.6">
              Tap <strong style="color:var(--text-s)">+</strong> to write your first note
@@ -216,9 +227,11 @@ function renderCards(): void {
   }
 
   grid.innerHTML = list.map((n, i) => {
-    const id = esc(n.id);
+    const id    = esc(n.id);
+    const isNew = !seenBefore.has(n.id);
+    const delay = isNew && firstPaint ? ` style="animation-delay:${Math.min(i, 8) * 45}ms"` : "";
     return `
-    <div class="card" data-id="${id}" style="animation-delay:${Math.min(i, 8) * 45}ms">
+    <div class="card${isNew ? " card-in" : ""}" data-id="${id}"${delay}>
       <div class="card-actions">
         <button class="card-btn card-pin${n.pinned ? " pinned" : ""}" data-id="${id}" title="${n.pinned ? "Unpin" : "Pin"}">${n.pinned ? "&#x2605;" : "&#x2606;"}</button>
         <button class="card-btn card-edit" data-id="${id}" title="Edit">&#x270E;</button>
