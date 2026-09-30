@@ -179,6 +179,199 @@ describe("note view", () => {
   });
 });
 
+describe("loading errors", () => {
+  let fail: (err: Error) => void;
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(onSnapshot).mockImplementation(((_q: unknown, next: Listener, error: typeof fail) => {
+      emit = next; fail = error; return unsub;
+    }) as never);
+    teardownApp();
+    renderApp(root, alice);
+    vi.mocked(onSnapshot).mockClear();
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("offers Retry, which listens again", () => {
+    fail(new Error("permission-denied"));
+    expect(el("note-count").textContent).toBe("Couldn't load notes");
+    el("notes-retry").click();
+    expect(onSnapshot).toHaveBeenCalledOnce();
+    expect(el("note-count").textContent).toBe("Loading…");
+    send(note());
+    expect(cardIds()).toEqual(["n1"]);
+  });
+
+  it("keeps the skeletons, not an empty notebook, until the notes arrive", () => {
+    document.querySelector<HTMLElement>('.ni[data-filter="work"]')!.click();
+    expect(el("grid").querySelector(".sk-card")).not.toBeNull();
+    expect(el("grid").textContent).not.toContain("Nothing here yet");
+    send(note());
+    expect(cardIds()).toEqual(["n1"]);
+  });
+
+  it("keeps the error and Retry when the list is re-rendered", () => {
+    fail(new Error("permission-denied"));
+    document.querySelector<HTMLElement>('.ni[data-filter="work"]')!.click();
+    el("sort-btn").click();
+    type("search-input", "x");
+    vi.advanceTimersByTime(120);
+    expect(el("grid").textContent).not.toContain("Your notebook is empty");
+    expect(el("notes-retry")).not.toBeNull();
+  });
+});
+
+describe("filters, search and sort", () => {
+  beforeEach(() => {
+    send(note({ id: "w", tag: "work" }), note({ id: "i", tag: "ideas", pinned: true }), note({ id: "p", tag: "personal" }));
+  });
+
+  it("filter from the sidebar or the mobile bar, and count each", () => {
+    document.querySelector<HTMLElement>('.mn-btn[data-filter="ideas"]')!.click();
+    expect(cardIds()).toEqual(["i"]);
+    expect(el("ptitle").textContent).toBe("Ideas");
+    expect(document.querySelector('.ni[data-filter="ideas"]')!.classList.contains("on")).toBe(true);
+    document.querySelector<HTMLElement>('.ni[data-filter="pinned"]')!.click();
+    expect(cardIds()).toEqual(["i"]);
+    const count = (f: string) => document.querySelector(`[data-count="${f}"]`)!.textContent;
+    expect([count("all"), count("pinned"), count("work"), count("ideas"), count("personal")]).toEqual(["3", "1", "1", "1", "1"]);
+  });
+
+  it("says nothing matches rather than inviting a first note", () => {
+    type("search-input", "zzz");
+    vi.advanceTimersByTime(120);
+    expect(el("grid").textContent).toContain("Nothing here yet");
+  });
+
+  it("clears the search from its button or with Escape", () => {
+    type("search-input", "zzz");
+    el("search-clear").click();
+    expect(el("search-input").value).toBe("");
+    expect(cardIds()).toHaveLength(3);
+
+    type("search-input", "zzz");
+    el("search-input").focus();
+    key(el("search-input"), { key: "Escape" });
+    expect(el("search-input").value).toBe("");
+    expect(cardIds()).toHaveLength(3);
+  });
+
+  it("cycles Newest → Oldest → A–Z → Newest", () => {
+    const labels = [el("sort-btn").textContent];
+    for (let i = 0; i < 3; i++) { el("sort-btn").click(); labels.push(el("sort-btn").textContent); }
+    expect(labels).toEqual(["↓ Newest", "↑ Oldest", "A–Z", "↓ Newest"]);
+  });
+});
+
+describe("note view actions", () => {
+  beforeEach(() => {
+    send(note({ id: "a", title: "Alpha", body: "**hi**" }), note({ id: "b" }));
+    document.querySelector<HTMLElement>('.card[data-id="a"]')!.click();
+  });
+
+  it("renders the note's Markdown", () => {
+    expect(el("view-title").textContent).toBe("Alpha");
+    expect(el("view-body").innerHTML).toContain("<strong>hi</strong>");
+  });
+
+  it("follows live changes and closes if the note is deleted elsewhere", () => {
+    send(note({ id: "a", title: "Alpha 2", pinned: true }), note({ id: "b" }));
+    expect(el("view-title").textContent).toBe("Alpha 2");
+    expect(el("view-pin-badge").classList.contains("show")).toBe(true);
+    send(note({ id: "b" }));
+    expect(isOpen("ov-view")).toBe(false);
+  });
+
+  it("pins, edits and deletes the open note", () => {
+    el("view-pin-btn").click();
+    expect(updateDoc).toHaveBeenCalledWith({ id: "a" }, { pinned: true });
+    el("view-edit").click();
+    expect(isOpen("ov-view")).toBe(false);
+    expect(isOpen("ov")).toBe(true);
+    expect(el("nt").value).toBe("Alpha");
+    key(el("nt"), { key: "Escape" });
+    expect(isOpen("ov")).toBe(false);
+
+    document.querySelector<HTMLElement>('.card[data-id="a"]')!.click();
+    el("view-del-btn").click();
+    expect(deleteDoc).toHaveBeenCalledWith({ id: "a" });
+    expect(isOpen("ov-view")).toBe(false);
+  });
+});
+
+describe("dialog and card buttons", () => {
+  it("Cmd+Enter saves, a double press saves once", () => {
+    el("fab").click();
+    type("nt", "Quick");
+    key(el("nt"), { key: "Enter", metaKey: true });
+    key(el("nt"), { key: "Enter", metaKey: true });
+    expect(addDoc).toHaveBeenCalledOnce();
+    expect(addDoc).toHaveBeenCalledWith({}, expect.objectContaining({ uid: "alice", title: "Quick", body: "", createdAt: "SERVER_TS" }));
+  });
+
+  it("Cancel discards a new note's draft; Escape keeps it", () => {
+    el("fab").click();
+    type("nt", "keep me");
+    key(el("nt"), { key: "Escape" });
+    el("fab").click();
+    expect(el("nt").value).toBe("keep me");
+    el("cancel-btn").click();
+    el("fab").click();
+    expect(el("nt").value).toBe("");
+  });
+
+  it("forgets a draft that was emptied again", () => {
+    el("fab").click();
+    type("nt", "x");
+    type("nt", "  ");
+    expect(localStorage.getItem("noteDraft:alice")).toBeNull();
+  });
+
+  it("warns when saving offline", () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    el("fab").click();
+    type("nt", "Plane notes");
+    el("save-btn").click();
+    expect(toastText()).toBe("Saved offline — will sync when you're back online");
+    vi.restoreAllMocks();
+  });
+
+  it("pins from the card and reports a failed delete", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    send(note());
+    document.querySelector<HTMLElement>(".card-pin")!.click();
+    expect(updateDoc).toHaveBeenCalledWith({ id: "n1" }, { pinned: true });
+    vi.mocked(deleteDoc).mockRejectedValueOnce(new Error("unavailable"));
+    document.querySelector<HTMLElement>(".card-del")!.click();
+    await flush();
+    expect(toastText()).toBe("Couldn't delete — try again");
+    vi.restoreAllMocks();
+  });
+});
+
+describe("sign out", () => {
+  it("clears the draft, tears down and signs out", async () => {
+    const { signOut } = await import("firebase/auth");
+    el("fab").click();
+    type("nt", "private");
+    el("signout-btn").click();
+    expect(localStorage.getItem("noteDraft:alice")).toBeNull();
+    expect(unsub).toHaveBeenCalledOnce();
+    expect(signOut).toHaveBeenCalledOnce();
+  });
+});
+
+describe("mascot", () => {
+  it("rotates its quote every few seconds", () => {
+    const first = el("qb").textContent;
+    vi.advanceTimersByTime(4000 + 290);
+    expect(el("qb").textContent).not.toBe(first);
+    expect(el("fig").classList.contains("boing")).toBe(true);
+    vi.advanceTimersByTime(600);
+    expect(el("fig").classList.contains("boing")).toBe(false);
+  });
+});
+
 describe("keyboard", () => {
   it("Escape closes the note view, then nothing else", () => {
     send(note());

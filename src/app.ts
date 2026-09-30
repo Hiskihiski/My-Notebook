@@ -29,6 +29,7 @@ let quoteTimer:      ReturnType<typeof setInterval> | null = null;
 let keyboardHandler: ((e: KeyboardEvent) => void) | null   = null;
 let draftKey:        string | null                         = null;
 let editStart:       string | null                         = null;
+let loadState:       "loading" | "ready" | "failed"        = "loading";
 
 // Called on every auth change (including sign-out) so listeners and timers
 // from a previous session never leak into the next render.
@@ -38,7 +39,7 @@ export function teardownApp(): void {
   if (searchDebounce) { clearTimeout(searchDebounce); searchDebounce = null; }
   if (keyboardHandler) { document.removeEventListener("keydown", keyboardHandler); keyboardHandler = null; }
   hideToast();
-  viewId = null; editingId = null; draftKey = null; editStart = null;
+  viewId = null; editingId = null; draftKey = null; editStart = null; loadState = "loading";
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
 }
 
@@ -188,6 +189,10 @@ export function renderApp(root: HTMLElement, user: User): void {
 function renderCards(): void {
   const grid = $<HTMLDivElement>("grid");
   if (!grid) return;
+  // A filter/search/sort before the notes arrive (or after they failed to)
+  // mustn't swap the skeletons or the Retry button for "Your notebook is empty".
+  if (loadState === "loading") return;
+  if (loadState === "failed") { showLoadError(); return; }
 
   const list = visibleNotes(notes, filter, searchQuery, sortOrder);
 
@@ -390,10 +395,12 @@ function saveNote(user: User): void {
 // ── Firestore listener ────────────────────────────────────────────────────────
 function subscribeToNotes(user: User): void {
   unsubNotes?.();
+  loadState = "loading";
   const q = query(collection(db, "notes"), where("uid", "==", user.uid));
   unsubNotes = onSnapshot(
     q,
     (snap) => {
+      loadState = "ready";
       notes = snap.docs.map(noteFromSnapshot);
       const el = $("note-count");
       if (el) el.textContent = `Free · ${notes.length} note${notes.length !== 1 ? "s" : ""}`;
@@ -401,7 +408,7 @@ function subscribeToNotes(user: User): void {
       renderCards();
       refreshView();
     },
-    (err) => { console.error("Firestore:", err); showLoadError(); },
+    (err) => { console.error("Firestore:", err); loadState = "failed"; showLoadError(); },
   );
 }
 
