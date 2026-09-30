@@ -14,7 +14,9 @@ import {
 import { renderMd, previewMd } from "./markdown";
 import { parseDraft } from "./draft";
 import { store } from "./storage";
-import { TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, visibleNotes } from "./notes";
+import {
+  TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, tidyBody, visibleNotes,
+} from "./notes";
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let notes:           Note[]                                = [];
@@ -373,7 +375,7 @@ function saveNote(user: User): void {
   if (btn.disabled) return; // save already in flight (double-click / Cmd+Enter)
   if (editingId && formState() === editStart) { closeModal(); return; }
   const title  = clip($<HTMLInputElement>("nt").value.trim(), TITLE_MAX) || "Untitled";
-  const body   = clip($<HTMLTextAreaElement>("nb").value.trim(), BODY_MAX);
+  const body   = clip(tidyBody($<HTMLTextAreaElement>("nb").value), BODY_MAX);
   const tag    = $<HTMLSelectElement>("ntag").value      as Tag;
   const pinned = $<HTMLInputElement>("npin").checked;
   btn.disabled = true;

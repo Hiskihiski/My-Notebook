@@ -325,6 +325,19 @@ describe("dialog and card buttons", () => {
     expect(addDoc).toHaveBeenCalledWith({}, expect.objectContaining({ uid: "alice", title: "Quick", body: "", createdAt: "SERVER_TS" }));
   });
 
+  it("keeps the first line's indentation (a Markdown code block) but drops blank edges", () => {
+    el("fab").click();
+    type("nt", "  Snippet  ");
+    type("nb", "\n\n    const x = 1;\n  \n");
+    el("save-btn").click();
+    expect(addDoc).toHaveBeenCalledWith({}, expect.objectContaining({ title: "Snippet", body: "    const x = 1;" }));
+
+    el("fab").click();
+    type("nb", " \n \t ");
+    el("save-btn").click();
+    expect(addDoc).toHaveBeenLastCalledWith({}, expect.objectContaining({ title: "Untitled", body: "" }));
+  });
+
   it("Cancel discards a new note's draft; Escape keeps it", () => {
     el("fab").click();
     type("nt", "keep me");

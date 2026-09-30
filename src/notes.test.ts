@@ -3,7 +3,7 @@ import { serverTimestamp, type FieldValue, type QueryDocumentSnapshot, type Time
 import rules from "../firestore.rules?raw";
 import type { Note } from "./types";
 import {
-  TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, toNote, visibleNotes,
+  TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, tidyBody, toNote, visibleNotes,
 } from "./notes";
 
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) }) as unknown as Timestamp;
@@ -121,6 +121,18 @@ describe("clip", () => {
     const s = "x".repeat(199) + "😀";
     expect(clip(s, 200)).toBe("x".repeat(199));
     expect(clip("😀😀", 4)).toBe("😀😀");
+  });
+});
+
+describe("tidyBody", () => {
+  it.each([
+    ["an indented first line", "    code\n", "    code"],
+    ["leading blank lines", "\n \n  - item", "  - item"],
+    ["trailing space and lines", "text  \n\n", "text"],
+    ["whitespace only", " \n\t ", ""],
+    ["inner blank lines", "a\n\n\nb", "a\n\n\nb"],
+  ])("handles %s", (_label, input, expected) => {
+    expect(tidyBody(input)).toBe(expected);
   });
 });
 

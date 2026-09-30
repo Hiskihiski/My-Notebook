@@ -59,6 +59,12 @@ export function clip(s: string, max: number): string {
   return /[\uD800-\uDBFF]$/.test(c) ? c.slice(0, -1) : c;
 }
 
+// Drops blank lines and whitespace around a body but keeps the first line's
+// indentation: in Markdown it can make that line a code block or nested item.
+export function tidyBody(s: string): string {
+  return s.replace(/^\s*\n/, "").trimEnd();
+}
+
 // Undo re-adds a deleted note as a new doc, so it has to pass today's create
 // rules even if an older app version wrote it (unknown tag, long title, …).
 export function restoreData(n: Note) {
