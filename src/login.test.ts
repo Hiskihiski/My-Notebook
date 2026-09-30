@@ -7,7 +7,9 @@ vi.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: vi.fn(), sendSignInLinkToEmail: vi.fn(),
 }));
 
-import { sendSignInLinkToEmail, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import {
+  sendSignInLinkToEmail, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect,
+} from "firebase/auth";
 import { renderLogin, showLoginError, clearLoginError } from "./login";
 
 const el = <T extends HTMLElement = HTMLInputElement>(id: string) => document.getElementById(id) as T;
@@ -28,6 +30,8 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
 });
+
+const key = (target: HTMLElement, k: string) => target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
 
 function enterEmail(email: string): void {
   if (el("step-email").style.display === "none") el("back-from-password").click();
@@ -143,7 +147,111 @@ describe("showLoginError", () => {
   });
 });
 
+describe("email and password", () => {
+  const err = (code: string, message = code) => Object.assign(new Error(message), { code });
+  const shown = () => el("login-err").style.display === "block" ? el("login-err").textContent : null;
+
+  it("asks for a valid address before moving on, and Enter continues", () => {
+    el("email-input").value = "not-an-email";
+    key(el("email-input"), "Enter");
+    expect(shown()).toBe("Enter a valid email address.");
+    expect(el("step-email").style.display).toBe("");
+
+    el("email-input").value = "  ada@example.com ";
+    key(el("email-input"), "Enter");
+    expect(el("step-password").style.display).toBe("");
+    expect(el("badge-password").textContent).toBe("ada@example.com");
+    expect(shown()).toBeNull();
+  });
+
+  it("asks for a password before trying, and Enter signs in", async () => {
+    enterEmail("pw@example.com"); // the guard is module-wide: use an address no other test locked
+    el("signin-btn").click();
+    expect(shown()).toBe("Enter your password.");
+    expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
+
+    vi.mocked(signInWithEmailAndPassword).mockResolvedValueOnce({} as never);
+    el("pw-input").value = "correct horse";
+    key(el("pw-input"), "Enter");
+    await flush();
+    expect(signInWithEmailAndPassword).toHaveBeenCalledWith({}, "pw@example.com", "correct horse");
+    expect(shown()).toBeNull();
+  });
+
+  it("forgets earlier failures after a successful sign-in", async () => {
+    enterEmail("reset@example.com");
+    await wrongPassword();
+    await wrongPassword();
+    vi.mocked(signInWithEmailAndPassword).mockResolvedValueOnce({} as never);
+    await wrongPassword(); // succeeds this time
+    enterEmail("reset@example.com");
+    expect(el("dot-1").classList.contains("used")).toBe(false);
+  });
+
+  it("reports other errors without counting them as wrong passwords", async () => {
+    vi.mocked(signInWithEmailAndPassword).mockRejectedValue(err("auth/network-request-failed", "offline"));
+    enterEmail("net@example.com");
+    for (let i = 0; i < 3; i++) await wrongPassword();
+    expect(shown()).toBe("Sign-in failed: offline");
+    expect(el("lockout-msg").style.display).toBe("none");
+    expect(el<HTMLButtonElement>("signin-btn").disabled).toBe(false);
+  });
+
+  it("clears the password when going back to change the address", () => {
+    enterEmail("ada@example.com");
+    el("pw-input").value = "secret";
+    el("back-from-password").click();
+    expect(el("step-email").style.display).toBe("");
+    expect(el("pw-input").value).toBe("");
+  });
+});
+
+describe("email sign-in link errors", () => {
+  it("reports a failed send and restores the button", async () => {
+    vi.mocked(sendSignInLinkToEmail).mockReset().mockRejectedValueOnce(new Error("quota exceeded"));
+    enterEmail("ada@example.com");
+    el("send-link-btn").click();
+    await flush();
+    expect(el("login-err").textContent).toBe("Could not send link: quota exceeded");
+    expect(el("step-password").style.display).toBe("");
+    expect(el<HTMLButtonElement>("send-link-btn").disabled).toBe(false);
+    expect(el("send-link-btn").textContent).toContain("Email me a sign-in link");
+  });
+
+  it("reports a failed resend and lets the user try again or go back", async () => {
+    vi.mocked(sendSignInLinkToEmail).mockReset().mockResolvedValueOnce().mockRejectedValueOnce(new Error("offline"));
+    enterEmail("ada@example.com");
+    el("send-link-btn").click();
+    await flush();
+    el("resend-link").click();
+    await flush();
+    expect(el("login-err").textContent).toBe("Could not send link: offline");
+    expect(el<HTMLButtonElement>("resend-link").disabled).toBe(false);
+    expect(el("resend-link").textContent).toBe("Resend link");
+    el("back-from-link-sent").click();
+    expect(el("step-email").style.display).toBe("");
+  });
+});
+
 describe("Google sign-in", () => {
+  it("falls back to a redirect when the popup is blocked", async () => {
+    vi.mocked(signInWithPopup).mockRejectedValueOnce(Object.assign(new Error("blocked"), { code: "auth/popup-blocked" }));
+    vi.mocked(signInWithRedirect).mockReset().mockRejectedValueOnce(new Error("redirect failed"));
+    el("google-signin").click();
+    await flush();
+    expect(signInWithRedirect).toHaveBeenCalledOnce();
+    expect(el("login-err").textContent).toBe("redirect failed");
+    expect(el("google-signin").querySelector("svg")).not.toBeNull();
+  });
+
+  it("reports other failures", async () => {
+    vi.mocked(signInWithPopup).mockRejectedValueOnce(Object.assign(new Error("boom"), { code: "auth/internal-error" }));
+    el("google-signin").click();
+    await flush();
+    expect(el("login-err").textContent).toBe("Sign-in failed: boom");
+    expect(el<HTMLButtonElement>("google-signin").disabled).toBe(false);
+  });
+
   it("keeps the button's logo when the popup is closed", async () => {
     vi.mocked(signInWithPopup).mockRejectedValueOnce(Object.assign(new Error("closed"), { code: "auth/popup-closed-by-user" }));
     const btn = el<HTMLButtonElement>("google-signin");
