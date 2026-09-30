@@ -48,7 +48,12 @@ function startApp(): void {
 
   getRedirectResult(auth).catch((err: unknown) => {
     console.error("getRedirectResult:", err);
-    if (!auth.currentUser) showLoginError("Sign-in was interrupted — please try again.");
+    if (auth.currentUser) return;
+    showLoginError("Sign-in was interrupted — please try again.");
+    // The user was mid sign-in: show the error on the login screen rather
+    // than behind the landing page's "Get started", like a failed email link.
+    if (isFirstAuthLoad) isFirstAuthLoad = false;
+    else if (root.querySelector(".landing")) renderLogin(root);
   });
 
   onAuthStateChanged(auth, (user) => {
