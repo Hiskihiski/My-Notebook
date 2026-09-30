@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Timestamp } from "firebase/firestore";
 import type { User } from "firebase/auth";
-import { esc, fmtDate, initials, firstName } from "./ui";
+import type { Note } from "./types";
+import {
+  esc, fmtDate, fmtCardDate, initials, firstName, onBackdropClick, showToast, hideToast,
+} from "./ui";
 
 const ts = (ms: number) => ({ toMillis: () => ms, toDate: () => new Date(ms) }) as unknown as Timestamp;
 const user = (u: Partial<User>) => u as User;
@@ -32,8 +35,33 @@ describe("fmtDate", () => {
     ["3 hours ago", NOW - 3 * 3_600_000, "3h ago"],
     ["30 hours ago", NOW - 30 * 3_600_000, "Yesterday"],
     ["10 days ago", NOW - 10 * 86_400_000, "Jun 5"],
+    ["400 days ago", NOW - 400 * 86_400_000, "May 11, 2025"],
+    ["a slightly future time (clock skew)", NOW + 5_000, "Just now"],
   ])("formats %s", (_label, ms, expected) => {
     expect(fmtDate(ms === null ? null : ts(ms))).toBe(expected);
+  });
+
+  it("treats a value that isn't a Timestamp as just now", () => {
+    expect(fmtDate(1_700_000_000_000 as unknown as Timestamp)).toBe("Just now");
+  });
+});
+
+describe("fmtCardDate", () => {
+  const NOW = new Date("2026-06-15T12:00:00Z").getTime();
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
+  afterEach(() => { vi.useRealTimers(); });
+  const n = (createdAt: Timestamp | null, updatedAt?: Timestamp | null) =>
+    ({ id: "a", uid: "u", title: "", body: "", tag: "work", pinned: false, createdAt, updatedAt }) as Note;
+
+  it("shows the edit time when the note was edited after it was made", () => {
+    expect(fmtCardDate(n(ts(NOW - 3 * 3_600_000), ts(NOW - 5 * 60_000)))).toBe("edited 5m ago");
+  });
+
+  it("shows the creation time otherwise", () => {
+    expect(fmtCardDate(n(ts(NOW - 3 * 3_600_000)))).toBe("3h ago");
+    expect(fmtCardDate(n(ts(NOW - 3 * 3_600_000), null))).toBe("3h ago");
+    expect(fmtCardDate(n(ts(NOW - 3 * 3_600_000), ts(NOW - 3 * 3_600_000)))).toBe("3h ago");
+    expect(fmtCardDate(n(null, ts(NOW - 60_000)))).toBe("Just now");
   });
 });
 
@@ -52,5 +80,96 @@ describe("initials / firstName", () => {
   it("have a placeholder when there's neither", () => {
     expect(initials(user({ displayName: null, email: null }))).toBe("?");
     expect(firstName(user({ displayName: null, email: null }))).toBe("User");
+  });
+
+  it("treat a blank display name as missing", () => {
+    expect(initials(user({ displayName: "   ", email: "grace@example.com" }))).toBe("G");
+    expect(firstName(user({ displayName: "   ", email: "grace@example.com" }))).toBe("grace");
+    expect(initials(user({ displayName: "", email: null }))).toBe("?");
+    expect(firstName(user({ displayName: " ", email: "@example.com" }))).toBe("User");
+  });
+
+  it("keep an emoji whole", () => {
+    expect(initials(user({ displayName: "😀 Smith" }))).toBe("😀S");
+    expect(initials(user({ displayName: null, email: "😀@example.com" }))).toBe("😀");
+  });
+});
+
+describe("onBackdropClick", () => {
+  let ov: HTMLDivElement, inner: HTMLTextAreaElement, fn: ReturnType<typeof vi.fn<() => void>>;
+  beforeEach(() => {
+    document.body.innerHTML = `<div id="ov"><div class="modal"><textarea></textarea></div></div>`;
+    ov = document.querySelector("#ov")!;
+    inner = document.querySelector("textarea")!;
+    fn = vi.fn<() => void>();
+    onBackdropClick(ov, fn);
+  });
+  const press = (down: Element, up: Element) => {
+    down.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    up.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  };
+
+  it("closes on a click on the backdrop", () => {
+    press(ov, ov);
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
+  it("stays open for clicks inside the dialog", () => {
+    press(inner, inner);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("stays open when a text selection is dragged out onto the backdrop", () => {
+    // The browser fires click on the nearest common ancestor: the backdrop.
+    press(inner, ov);
+    expect(fn).not.toHaveBeenCalled();
+    press(ov, ov);
+    expect(fn).toHaveBeenCalledOnce();
+  });
+});
+
+describe("showToast", () => {
+  beforeEach(() => { document.body.innerHTML = ""; vi.useFakeTimers(); });
+  afterEach(() => { hideToast(); vi.useRealTimers(); });
+  const toast = () => document.getElementById("toast")!;
+  const undoBtn = () => document.getElementById("toast-undo");
+
+  it("escapes the message and hides after 5 seconds", () => {
+    showToast("<b>hi</b>");
+    expect(toast().textContent).toBe("<b>hi</b>");
+    expect(toast().classList.contains("show")).toBe(true);
+    expect(undoBtn()).toBeNull();
+    vi.advanceTimersByTime(5000);
+    expect(toast().classList.contains("show")).toBe(false);
+  });
+
+  it("runs Undo once, even if clicked again while fading out", () => {
+    const undo = vi.fn();
+    showToast("Note deleted", undo);
+    undoBtn()!.click();
+    undoBtn()!.click();
+    expect(undo).toHaveBeenCalledOnce();
+    expect(toast().classList.contains("show")).toBe(false);
+  });
+
+  it("doesn't run Undo after the toast timed out", () => {
+    const undo = vi.fn();
+    showToast("Note deleted", undo);
+    vi.advanceTimersByTime(5000);
+    undoBtn()!.click();
+    expect(undo).not.toHaveBeenCalled();
+  });
+
+  it("a newer toast replaces the older one's action and restarts the timer", () => {
+    const first = vi.fn(), second = vi.fn();
+    showToast("one", first);
+    vi.advanceTimersByTime(4000);
+    showToast("two", second, "Open");
+    expect(undoBtn()!.textContent).toBe("Open");
+    vi.advanceTimersByTime(4000);
+    expect(toast().classList.contains("show")).toBe(true);
+    undoBtn()!.click();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
   });
 });
