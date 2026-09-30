@@ -33,6 +33,7 @@ let draftKey:        string | null                         = null;
 export function teardownApp(): void {
   unsubNotes?.(); unsubNotes = null;
   if (quoteTimer) { clearInterval(quoteTimer); quoteTimer = null; }
+  if (searchDebounce) { clearTimeout(searchDebounce); searchDebounce = null; }
   if (keyboardHandler) { document.removeEventListener("keydown", keyboardHandler); keyboardHandler = null; }
   hideToast();
   viewId = null; editingId = null; draftKey = null;
@@ -533,19 +534,22 @@ function bindEvents(user: User): void {
 
   // Global keyboard shortcuts
   keyboardHandler = (e: KeyboardEvent) => {
-    const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+    const inInput    = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+    const viewOpen   = !!$("ov-view")?.classList.contains("open");
+    const editOpen   = !!$("ov")?.classList.contains("open");
     if (e.key === "Escape") {
-      if ($("ov-view")?.classList.contains("open")) { closeView(); return; }
-      if ($("ov")?.classList.contains("open"))      { closeModal(); return; }
+      if (viewOpen) { closeView(); return; }
+      if (editOpen) { closeModal(); return; }
       const si = $<HTMLInputElement>("search-input");
       if (si && document.activeElement === si && si.value) { clearSearch(); return; }
     }
     if ((e.metaKey || e.ctrlKey) && e.key === "n") {
       e.preventDefault();
-      if (!$("ov")?.classList.contains("open") && !$("ov-view")?.classList.contains("open")) openModal();
+      if (!editOpen && !viewOpen) openModal();
       return;
     }
-    if (e.key === "/" && !inInput) {
+    // Not while a dialog is up: focus would jump to the search box behind it.
+    if (e.key === "/" && !inInput && !editOpen && !viewOpen) {
       e.preventDefault();
       $<HTMLInputElement>("search-input")?.focus();
     }
