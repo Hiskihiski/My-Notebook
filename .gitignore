@@ -28,3 +28,8 @@ dist-ssr
 
 # Firebase deploy cache
 .firebase/
+
+# Claude Code: local worktrees, local-only instructions and audit workspace
+.claude/worktrees/
+CLAUDE.local.md
+.audit/
