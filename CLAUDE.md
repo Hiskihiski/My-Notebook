@@ -29,12 +29,18 @@ Firebase Hosting is wired up (`firebase.json` → `dist/`, project `my-notebook-
 
 Single-page app, no framework. Everything is vanilla TS talking to Firebase directly. Rendering is `innerHTML` template strings; there is no virtual DOM. All source is in `src/`; all CSS is in `src/style.css`.
 
-**Entry & routing (`src/main.ts`)** — mounts to `#app` and listens on `onAuthStateChanged`. Three top-level screens, chosen by auth state:
+**Entry & boot (`src/main.ts`, `src/boot.ts`)** — mounts to `#app`. `main.ts` must stay free of Firebase imports: a first-time visitor's landing page loads only `main.ts` + `landing.ts`, so no App Check/reCAPTCHA request, cookie or Firebase IndexedDB exists before they click "Get started" (privacy, § 25 TDDDG). Firebase starts via `import("./session")` when (`boot.ts`):
+- "Get started" is clicked → login screen,
+- `localStorage["signedIn"] === "1"` (set/cleared by `session.ts` on every auth change),
+- the URL is an email sign-in link, or `sessionStorage["pendingGoogleRedirect"]` is set (`login.ts` sets it before `signInWithRedirect`),
+- or `hasPersistedAuthUser()` finds a Firebase auth user in IndexedDB (sessions from before the flag existed; it never creates the DB).
+
+**Auth routing (`src/session.ts`, own chunk)** — listens on `onAuthStateChanged`. Three top-level screens, chosen by auth state:
 - `renderLanding` (first-load, signed-out) → marketing screen
 - `renderLogin` (subsequent signed-out) → Google / email+password / email-link flows
 - `renderApp` (signed-in) → the notebook UI
 
-The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the login screen rather than the landing page. `main.ts` also handles the email-link completion path (`isSignInWithEmailLink` → `signInWithEmailLink`), stripping the `oobCode` from the URL either way.
+The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the login screen rather than the landing page. `session.ts` also handles the email-link completion path (`isSignInWithEmailLink` → `signInWithEmailLink`), stripping the `oobCode` from the URL either way, and `getRedirectResult`.
 
 **App shell (`src/app.ts`)** — holds all app state as module-level `let`s (`notes`, `filter`, `searchQuery`, `sortOrder`, `editingId`, `viewId`, `unsubNotes`, timers, keyboard handler). **`teardownApp()` must be called on every auth change** (including sign-out) — it unsubscribes the Firestore listener, clears timers, removes the global keydown handler, and resets state. Adding new listeners/timers means adding matching cleanup in `teardownApp`.
 

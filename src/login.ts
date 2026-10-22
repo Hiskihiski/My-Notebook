@@ -4,8 +4,9 @@ import {
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
+import { PENDING_REDIRECT_KEY, setFlag } from "./boot";
 
-// localStorage key the email-link completion step (main.ts) reads back.
+// localStorage key the email-link completion step (session.ts) reads back.
 export const EMAIL_FOR_SIGN_IN_KEY = "emailForSignIn";
 
 // ── Brute-force guard (client-side UX only — Firebase enforces real limits) ──
@@ -108,7 +109,10 @@ export function renderLogin(root: HTMLElement): void {
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        // Makes main.ts start Firebase right away when the redirect comes back.
+        setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, true);
         signInWithRedirect(auth, gProvider).catch((e: unknown) => {
+          setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, false); // no redirect happened
           showErr((e as Error).message ?? "Sign-in failed");
           btn.disabled = false; btn.textContent = "Continue with Google";
         });
