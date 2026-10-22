@@ -72,8 +72,20 @@ export function hideToast(): void {
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
+// localStorage throws when the browser blocks site data; the theme then just
+// follows the OS setting and isn't remembered.
+function savedTheme(): string | null {
+  try { return localStorage.getItem("theme"); }
+  catch { return null; }
+}
+
+function storeTheme(theme: string): void {
+  try { localStorage.setItem("theme", theme); }
+  catch { console.warn("Theme not saved: site data is blocked"); }
+}
+
 export function initTheme(): void {
-  const saved = localStorage.getItem("theme");
+  const saved = savedTheme();
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   document.documentElement.dataset.theme = saved === "dark" || saved === "light"
     ? saved
@@ -90,7 +102,7 @@ function toggleTheme(): void {
   html.classList.add("theme-changing");
   const next = isDark() ? "light" : "dark";
   html.dataset.theme = next;
-  localStorage.setItem("theme", next);
+  storeTheme(next);
   updateThemeIcon();
   setTimeout(() => html.classList.remove("theme-changing"), 300);
 }

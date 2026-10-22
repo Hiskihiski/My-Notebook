@@ -1,5 +1,3 @@
-import { renderLogin } from "./login";
-
 const FEATURES = [
   { icon: "✎", title: "Markdown", desc: "Bold, italic, lists — lightweight formatting that stays out of your way." },
   { icon: "#", title: "Tags", desc: "Work, ideas, personal. One tap isolates exactly what you need." },
@@ -7,7 +5,9 @@ const FEATURES = [
   { icon: "⌕", title: "Instant search", desc: "Any note, by title or content, in milliseconds." },
 ];
 
-export function renderLanding(root: HTMLElement): void {
+// No Firebase here: first-time visitors see this page before anything loads
+// it. `onGetStarted` starts Firebase (main.ts) or, once running, shows login.
+export function renderLanding(root: HTMLElement, onGetStarted: () => void): void {
   root.innerHTML = `
     <div class="landing">
       <main class="landing-inner">
@@ -34,7 +34,5 @@ export function renderLanding(root: HTMLElement): void {
     </div>
   `;
 
-  root.querySelector<HTMLButtonElement>(".landing-cta")?.addEventListener("click", () => {
-    renderLogin(root);
-  });
+  root.querySelector<HTMLButtonElement>(".landing-cta")?.addEventListener("click", onGetStarted);
 }
