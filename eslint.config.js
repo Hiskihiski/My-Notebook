@@ -7,6 +7,11 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Node build scripts (run by CI after the build).
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { process: "readonly", console: "readonly" } },
+  },
+  {
     files: ["**/*.ts"],
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
