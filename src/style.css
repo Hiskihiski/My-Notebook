@@ -340,6 +340,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .recaptcha-note a{color:inherit;text-decoration:underline}
 .link-sent-icon{font-size:38px;line-height:1;margin-bottom:12px}
 
+/* ── Legal links (landing, login, end of the note grid) ── */
+.legal-links{font-size:11.5px;line-height:1.6;color:var(--text);margin:16px auto 0;max-width:280px}
+.landing .legal-links{margin-top:34px;max-width:none;text-align:center}
+.grid-foot{grid-column:1/-1;font-size:11px;line-height:1.6;color:var(--text);text-align:center;padding:12px 0 0}
+.legal-links a,.grid-foot a{color:inherit;text-underline-offset:2px}
+
 /* ── Toast ── */
 .toast{
   position:fixed;bottom:26px;left:50%;transform:translate(-50%,16px);
