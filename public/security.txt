@@ -1,0 +1,8 @@
+Contact: https://github.com/Hiskihiski/My-Notebook/security/advisories/new
+Expires: 2027-10-22T00:00:00.000Z
+Preferred-Languages: en, de
+Canonical: https://my-notebook-web.web.app/.well-known/security.txt
+Canonical: https://my-notebook-web.web.app/security.txt
+Canonical: https://my-notebook-web.firebaseapp.com/.well-known/security.txt
+Canonical: https://my-notebook-web.firebaseapp.com/security.txt
+Policy: https://github.com/Hiskihiski/My-Notebook/blob/main/SECURITY.md

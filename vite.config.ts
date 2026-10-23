@@ -19,8 +19,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png}"],
+        // Served with status 404, which would fail the whole precache install.
+        globIgnores: ["404.html"],
         // Firestore/Auth traffic must never be served from the SW cache.
         navigateFallbackDenylist: [/^\/__/],
+        // The app only lives at /; other paths (legal pages, security.txt,
+        // unknown URLs → 404) must come from the network or precache.
+        navigateFallbackAllowlist: [/^\/(index\.html)?(\?|$)/],
       },
     }),
   ],
