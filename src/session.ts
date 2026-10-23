@@ -4,7 +4,8 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { renderLanding } from "./landing";
-import { renderLogin, EMAIL_FOR_SIGN_IN_KEY } from "./login";
+import { renderLogin } from "./login";
+import { EMAIL_FOR_SIGN_IN_KEY, parseSignInEmail } from "./email-link";
 import { renderApp, teardownApp } from "./app";
 import { SIGNED_IN_KEY, PENDING_REDIRECT_KEY, setFlag, type SignedOutScreen } from "./boot";
 
@@ -20,9 +21,19 @@ function showLoginError(msg: string): void {
   show();
 }
 
+// The address a sign-in link was sent to (null if none, expired or blocked).
+function rememberedEmail(): string | null {
+  try { return parseSignInEmail(localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY), Date.now()); }
+  catch { return null; } // site data blocked
+}
+
+function forgetEmail(): void {
+  setFlag(() => localStorage, EMAIL_FOR_SIGN_IN_KEY, false); // removes the key; tolerates blocked storage
+}
+
 // Completes passwordless sign-in when the page is opened from an emailed link.
 async function completeEmailLinkSignIn(): Promise<void> {
-  let email = localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
+  let email = rememberedEmail();
   if (!email) {
     // Link was opened on a different device/browser than the one that requested it.
     email = window.prompt("Confirm your email to finish signing in:");
@@ -30,7 +41,7 @@ async function completeEmailLinkSignIn(): Promise<void> {
   try {
     if (!email) throw new Error("Email confirmation cancelled.");
     await signInWithEmailLink(auth, email, window.location.href);
-    localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+    forgetEmail();
   } catch (err: unknown) {
     showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);
   } finally {
@@ -68,6 +79,9 @@ export function startSession(root: HTMLElement, firstSignedOutScreen: SignedOutS
     // Lets main.ts start Firebase right away on the next visit (and not at all
     // once signed out).
     setFlag(() => localStorage, SIGNED_IN_KEY, user !== null);
+    // Signed in by any method: a remembered link address is no longer needed;
+    // expired ones are dropped too so the address doesn't stay on the device.
+    if (user || rememberedEmail() === null) forgetEmail();
     const firstLoad = isFirstAuthLoad;
     isFirstAuthLoad = false;
     if (user) {
