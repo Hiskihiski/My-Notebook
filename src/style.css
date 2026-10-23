@@ -1,11 +1,12 @@
 :root {
   --bg:#f0f0ed; --surface:#ffffff; --surface-2:#f9f9f7; --surface-3:#edede9;
   --border:#efefed; --border-2:#e8e8e4; --border-3:#e0e0db;
-  --text:#66645f; --text-s:#1a1a1a; --text-m:#b0b0ae; --text-f:#c8c8c4;
+  --text:#66645f; --text-s:#1a1a1a; --text-m:#6b6b6a; --text-f:#6b6b6a; /* ≥4.5:1 on every surface (WCAG AA) */
+  --border-input:#8f8f8a; /* form field outlines, ≥3:1 */
   --accent:#1a1a1a; --accent-t:#ffffff;
   --overlay:rgba(255,255,255,.82); --shadow:rgba(0,0,0,.06); --shadow-2:rgba(0,0,0,.10);
-  --scrollbar:#e0e0dc; --err:#c44444; --pin:#b08030; --danger:#b84040;
-  --tw-bg:#f0f0ec; --tw:#888; --ti-bg:#fdf3ec; --ti:#b07840; --tp-bg:#ecf1fc; --tp:#5878b8;
+  --scrollbar:#e0e0dc; --err:#bc4141; --pin:#896425; --danger:#b84040;
+  --tw-bg:#f0f0ec; --tw:#6d6d6d; --ti-bg:#fdf3ec; --ti:#966636; --tp-bg:#ecf1fc; --tp:#506da7;
   --mbody:#1a1a1a; --mlight:#ffffff;
   --ease-out:cubic-bezier(0.23,1,0.32,1);
   --ease-spring:cubic-bezier(0.34,1.3,0.64,1);
@@ -14,11 +15,12 @@
 [data-theme="dark"] {
   --bg:#0d0d10; --surface:#141418; --surface-2:#1b1b1f; --surface-3:#212126;
   --border:#222228; --border-2:#2d2d34; --border-3:#38383f;
-  --text:#8a8a90; --text-s:#e6e6e3; --text-m:#52525a; --text-f:#3a3a42;
+  --text:#8a8a90; --text-s:#e6e6e3; --text-m:#88888d; --text-f:#88888d;
+  --border-input:#6a6a72;
   --accent:#e6e6e3; --accent-t:#0d0d10;
   --overlay:rgba(0,0,0,.78); --shadow:rgba(0,0,0,.45); --shadow-2:rgba(0,0,0,.60);
   --scrollbar:#2a2a32; --err:#e06060; --pin:#c09040; --danger:#e06060;
-  --tw-bg:#1d1d1b; --tw:#6a6a67; --ti-bg:#1f1b12; --ti:#927232; --tp-bg:#111520; --tp:#4862a2;
+  --tw-bg:#1d1d1b; --tw:#858582; --ti-bg:#1f1b12; --ti:#9c7f44; --tp-bg:#111520; --tp:#697eb3;
   --mbody:#d0d0cd; --mlight:#141418;
 }
 html.theme-changing, html.theme-changing * {
@@ -111,12 +113,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .search-wrap{position:relative;flex:1}
 .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none}
 .search-wrap input{
-  width:100%;padding:8px 34px 8px 32px;border:1px solid var(--border-2);border-radius:9px;
+  width:100%;padding:8px 34px 8px 32px;border:1px solid var(--border-input);border-radius:9px;
   background:var(--surface-2);color:var(--text-s);font-size:13px;font-family:inherit;
   transition:border-color 180ms var(--ease-out),background 180ms;
 }
 .search-wrap input::placeholder{color:var(--text-f)}
-.search-wrap input:focus{border-color:var(--border-3);background:var(--surface)}
+.search-wrap input:focus{border-color:var(--text-m);background:var(--surface)}
 .search-hint{
   position:absolute;right:9px;top:50%;transform:translateY(-50%);
   font-size:11px;color:var(--text-f);background:var(--surface-3);border:1px solid var(--border-2);
@@ -232,11 +234,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .ov.open .modal{transform:scale(1) translateY(0);opacity:1}
 .modal h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text-s)}
 .modal input,.modal textarea,.modal select{
-  width:100%;border:1px solid var(--border-2);border-radius:9px;padding:9px 10px;font-size:13px;
+  width:100%;border:1px solid var(--border-input);border-radius:9px;padding:9px 10px;font-size:13px;
   color:var(--text-s);background:var(--surface-2);font-family:inherit;
   transition:border-color 150ms var(--ease-out),background 150ms;margin-bottom:9px;display:block;
 }
-.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--border-3);background:var(--surface)}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--text-m);background:var(--surface)}
+.modal input::placeholder,.modal textarea::placeholder{color:var(--text-f)}
 .modal textarea{resize:none;height:76px;line-height:1.55}
 .modal select{appearance:none;-webkit-appearance:none;cursor:pointer}
 .wcount{font-size:11px;color:var(--text-m);text-align:right;margin:-4px 0 8px;min-height:14px}
@@ -336,11 +339,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .or-row::before,.or-row::after{content:'';flex:1;height:1px;background:var(--border-2)}
 .or-row span{font-size:11px;color:var(--text-m);flex-shrink:0}
 .email-input{
-  width:240px;padding:10px 12px;border:1px solid var(--border-2);border-radius:11px;
+  width:240px;padding:10px 12px;border:1px solid var(--border-input);border-radius:11px;
   font-size:13px;font-family:inherit;color:var(--text-s);background:var(--surface-2);
   transition:border-color 140ms,background 140ms;display:block;margin:0 auto;
 }
-.email-input:focus{border-color:var(--border-3);background:var(--surface)}
+.email-input:focus{border-color:var(--text-m);background:var(--surface)}
 .email-input::placeholder{color:var(--text-f)}
 .email-btn{width:240px;margin:8px auto 0;justify-content:center;padding:11px 0;display:flex}
 .email-btn:disabled{opacity:.5;cursor:default;transform:none!important;box-shadow:none!important}
@@ -355,9 +358,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;
 }
 .attempt-dots{display:flex;gap:5px;justify-content:center;margin:10px 0 4px}
-.attempt-dot{width:8px;height:8px;border-radius:50%;background:var(--border-2);transition:background 200ms}
-.attempt-dot.used{background:#e07060}
-.lockout-msg{font-size:12px;color:#e07060;text-align:center;margin:6px 0;font-weight:500}
+.attempt-dot{width:8px;height:8px;border-radius:50%;background:var(--border-input);transition:background 200ms}
+.attempt-dot.used{background:var(--err)}
+.lockout-msg{font-size:12px;color:var(--err);text-align:center;margin:6px 0;font-weight:500}
 .login-err{display:none;color:var(--err);font-size:13px;margin:0 auto 14px;max-width:280px;text-align:center}
 .otp-hint{font-size:12px;color:var(--text-m);margin:0 0 14px;text-align:center;line-height:1.5}
 /* The floating reCAPTCHA badge would cover the FAB. Hiding it is allowed as
