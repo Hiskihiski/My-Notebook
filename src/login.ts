@@ -4,13 +4,18 @@ import {
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
+import { PENDING_REDIRECT_KEY, setFlag } from "./boot";
+import {
+  EMAIL_FOR_SIGN_IN_KEY, serializeSignInEmail, cooldownSeconds, linkErrorMessage,
+} from "./email-link";
 
-// localStorage key the email-link completion step (main.ts) reads back.
-export const EMAIL_FOR_SIGN_IN_KEY = "emailForSignIn";
 
 // ── Brute-force guard (client-side UX only — Firebase enforces real limits) ──
 const bfMap = new Map<string, { count: number; lockedUntil: number }>();
 let lockoutTimer: ReturnType<typeof setInterval> | null = null;
+
+// When each address (lower-cased) last got a sign-in link, for the cooldown.
+const linkSentAt = new Map<string, number>();
 
 function bfSecondsLeft(email: string): number {
   const e = bfMap.get(email);
@@ -33,7 +38,7 @@ export function renderLogin(root: HTMLElement): void {
     <div class="login-wrap">
       <div class="login-box">
         <div class="login-icon">&#x1F4D3;</div>
-        <h1>Notebook</h1>
+        <h1 tabindex="-1">Notebook</h1>
         <p>Sign in or create an account</p>
         <div class="login-err" id="login-err"></div>
 
@@ -71,7 +76,7 @@ export function renderLogin(root: HTMLElement): void {
         <div id="step-link-sent" style="display:none">
           <div class="link-sent-icon">&#x2709;&#xFE0F;</div>
           <div class="email-badge" id="badge-link-sent"></div>
-          <p class="otp-hint">We sent a sign-in link to your email.<br>
+          <p class="otp-hint" id="link-sent-msg" tabindex="-1">We sent a sign-in link to your email.<br>
              Open it on this device to finish signing in.<br>
              Check your spam folder too.</p>
           <button class="back-link" id="resend-link" style="margin-top:8px">Resend link</button>
@@ -81,6 +86,8 @@ export function renderLogin(root: HTMLElement): void {
         <p class="recaptcha-note">This site is protected by reCAPTCHA and the Google
           <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
           <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.</p>
+        <p class="legal-links">Signing in creates an account for your notes.<br>
+          How we handle your data: <a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a></p>
       </div>
     </div>
   `;
@@ -91,11 +98,15 @@ export function renderLogin(root: HTMLElement): void {
 
   let currentEmail = "";
 
+  // Where focus goes when a step appears and the focused control was hidden.
+  const STEP_FOCUS = { "email": "email-input", "password": "pw-input", "link-sent": "link-sent-msg" } as const;
+
   function showStep(step: "email" | "password" | "link-sent"): void {
     $("step-email").style.display     = step === "email"     ? "" : "none";
     $("step-password").style.display  = step === "password"  ? "" : "none";
     $("step-link-sent").style.display = step === "link-sent" ? "" : "none";
     hideErr();
+    if (!$(`step-${step}`).contains(document.activeElement)) $(STEP_FOCUS[step]).focus();
   }
 
   // ── Google ──────────────────────────────────────────────────────────────────
@@ -108,7 +119,10 @@ export function renderLogin(root: HTMLElement): void {
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        // Makes main.ts start Firebase right away when the redirect comes back.
+        setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, true);
         signInWithRedirect(auth, gProvider).catch((e: unknown) => {
+          setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, false); // no redirect happened
           showErr((e as Error).message ?? "Sign-in failed");
           btn.disabled = false; btn.textContent = "Continue with Google";
         });
@@ -187,13 +201,23 @@ export function renderLogin(root: HTMLElement): void {
   $("back-from-password").addEventListener("click", () => { showStep("email"); $<HTMLInputElement>("pw-input").value = ""; });
 
   // ── Email sign-in link (passwordless; creates the account on first use) ─────
+  // Returns false (and shows why) while the address is in its resend cooldown.
+  function linkAllowed(email: string): boolean {
+    const wait = cooldownSeconds(linkSentAt, email, Date.now());
+    if (wait > 0) showErr(`You can request another link in ${wait}s.`);
+    return wait === 0;
+  }
+
   async function doSendLink(email: string): Promise<void> {
     await sendSignInLinkToEmail(auth, email, {
       url: window.location.origin + window.location.pathname,
       handleCodeInApp: true,
     });
-    // Remembered so the link can be completed without re-typing the email.
-    localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, email);
+    linkSentAt.set(email.trim().toLowerCase(), Date.now());
+    // Remembered (for EMAIL_MAX_AGE_MS) so the link can be completed without
+    // re-typing the email; not remembering it only means a prompt later.
+    try { localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, serializeSignInEmail(email, Date.now())); }
+    catch { console.warn("Sign-in email not remembered: site data is blocked"); }
     $<HTMLElement>("badge-link-sent").textContent = email;
     showStep("link-sent");
   }
@@ -201,11 +225,12 @@ export function renderLogin(root: HTMLElement): void {
   $<HTMLButtonElement>("send-link-btn").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("send-link-btn");
     hideErr();
+    if (!linkAllowed(currentEmail)) return;
     btn.disabled = true; btn.textContent = "Sending…";
     try {
       await doSendLink(currentEmail);
     } catch (err: unknown) {
-      showErr(`Could not send link: ${(err as Error).message ?? "unknown"}`);
+      showErr(linkErrorMessage((err as { code?: string }).code ?? "", (err as Error).message));
     } finally {
       btn.disabled = false; btn.innerHTML = "&#x2709;&#xFE0F; Email me a sign-in link";
     }
@@ -213,16 +238,22 @@ export function renderLogin(root: HTMLElement): void {
 
   $<HTMLButtonElement>("resend-link").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("resend-link");
-    hideErr(); btn.textContent = "Sending…";
+    hideErr();
+    if (!linkAllowed(currentEmail)) return;
+    btn.textContent = "Sending…";
     try {
       await doSendLink(currentEmail);
       btn.textContent = "Sent!";
       setTimeout(() => { btn.textContent = "Resend link"; }, 2500);
     } catch (err: unknown) {
-      showErr(`Could not send link: ${(err as Error).message ?? "unknown"}`);
+      showErr(linkErrorMessage((err as { code?: string }).code ?? "", (err as Error).message));
       btn.textContent = "Resend link";
     }
   });
 
   $("back-from-link-sent").addEventListener("click", () => showStep("email"));
+
+  // The previous screen (landing, app, spinner) and its focus are gone: start
+  // keyboard and screen-reader users at the top of the sign-in box.
+  root.querySelector<HTMLElement>(".login-box h1")?.focus();
 }

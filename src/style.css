@@ -1,11 +1,12 @@
 :root {
   --bg:#f0f0ed; --surface:#ffffff; --surface-2:#f9f9f7; --surface-3:#edede9;
   --border:#efefed; --border-2:#e8e8e4; --border-3:#e0e0db;
-  --text:#66645f; --text-s:#1a1a1a; --text-m:#b0b0ae; --text-f:#c8c8c4;
+  --text:#66645f; --text-s:#1a1a1a; --text-m:#6b6b6a; --text-f:#6b6b6a; /* ≥4.5:1 on every surface (WCAG AA) */
+  --border-input:#8f8f8a; /* form field outlines, ≥3:1 */
   --accent:#1a1a1a; --accent-t:#ffffff;
   --overlay:rgba(255,255,255,.82); --shadow:rgba(0,0,0,.06); --shadow-2:rgba(0,0,0,.10);
-  --scrollbar:#e0e0dc; --err:#c44444; --pin:#b08030; --danger:#b84040;
-  --tw-bg:#f0f0ec; --tw:#888; --ti-bg:#fdf3ec; --ti:#b07840; --tp-bg:#ecf1fc; --tp:#5878b8;
+  --scrollbar:#e0e0dc; --err:#bc4141; --pin:#896425; --danger:#b84040;
+  --tw-bg:#f0f0ec; --tw:#6d6d6d; --ti-bg:#fdf3ec; --ti:#966636; --tp-bg:#ecf1fc; --tp:#506da7;
   --mbody:#1a1a1a; --mlight:#ffffff;
   --ease-out:cubic-bezier(0.23,1,0.32,1);
   --ease-spring:cubic-bezier(0.34,1.3,0.64,1);
@@ -14,11 +15,12 @@
 [data-theme="dark"] {
   --bg:#0d0d10; --surface:#141418; --surface-2:#1b1b1f; --surface-3:#212126;
   --border:#222228; --border-2:#2d2d34; --border-3:#38383f;
-  --text:#8a8a90; --text-s:#e6e6e3; --text-m:#52525a; --text-f:#3a3a42;
+  --text:#8a8a90; --text-s:#e6e6e3; --text-m:#88888d; --text-f:#88888d;
+  --border-input:#6a6a72;
   --accent:#e6e6e3; --accent-t:#0d0d10;
   --overlay:rgba(0,0,0,.78); --shadow:rgba(0,0,0,.45); --shadow-2:rgba(0,0,0,.60);
   --scrollbar:#2a2a32; --err:#e06060; --pin:#c09040; --danger:#e06060;
-  --tw-bg:#1d1d1b; --tw:#6a6a67; --ti-bg:#1f1b12; --ti:#927232; --tp-bg:#111520; --tp:#4862a2;
+  --tw-bg:#1d1d1b; --tw:#858582; --ti-bg:#1f1b12; --ti:#9c7f44; --tp-bg:#111520; --tp:#697eb3;
   --mbody:#d0d0cd; --mlight:#141418;
 }
 html.theme-changing, html.theme-changing * {
@@ -30,6 +32,12 @@ html.theme-changing, html.theme-changing * {
 html,body{height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;background:var(--bg);color:var(--text)}
 #app{width:100vw;height:100dvh;display:flex;align-items:stretch;border:none!important;max-width:none!important;text-align:left}
+
+/* ── Keyboard focus ── one ring everywhere, drawn outside the control so it
+   sits on the surrounding background (≥ 3:1 in both themes). */
+:focus-visible{outline:2px solid var(--text-s);outline-offset:2px}
+/* Headings/messages that only receive focus on screen changes (tabindex=-1). */
+[tabindex="-1"]:focus{outline:none}
 
 #theme-toggle{
   position:fixed;top:13px;right:13px;z-index:200;width:32px;height:32px;border-radius:50%;
@@ -52,10 +60,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 }
 .pname{font-size:13px;font-weight:500;color:var(--text-s)}
 .psub{font-size:11px;color:var(--text-m);margin-top:1px}
-nav{padding:10px 8px;flex:1}
+.sidebar nav{padding:10px 8px;flex:1}
 .ni{
-  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;
-  font-size:13px;color:var(--text);cursor:pointer;
+  display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:8px 10px;border:0;border-radius:9px;background:none;
+  font:inherit;font-size:13px;text-align:left;color:var(--text);cursor:pointer;
   transition:background 150ms var(--ease-out),color 150ms var(--ease-out),transform 120ms var(--ease-out);
   user-select:none
 }
@@ -105,12 +113,12 @@ nav{padding:10px 8px;flex:1}
 .search-wrap{position:relative;flex:1}
 .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none}
 .search-wrap input{
-  width:100%;padding:8px 34px 8px 32px;border:1px solid var(--border-2);border-radius:9px;
-  background:var(--surface-2);color:var(--text-s);font-size:13px;outline:none;font-family:inherit;
+  width:100%;padding:8px 34px 8px 32px;border:1px solid var(--border-input);border-radius:9px;
+  background:var(--surface-2);color:var(--text-s);font-size:13px;font-family:inherit;
   transition:border-color 180ms var(--ease-out),background 180ms;
 }
 .search-wrap input::placeholder{color:var(--text-f)}
-.search-wrap input:focus{border-color:var(--border-3);background:var(--surface)}
+.search-wrap input:focus{border-color:var(--text-m);background:var(--surface)}
 .search-hint{
   position:absolute;right:9px;top:50%;transform:translateY(-50%);
   font-size:11px;color:var(--text-f);background:var(--surface-3);border:1px solid var(--border-2);
@@ -123,6 +131,8 @@ nav{padding:10px 8px;flex:1}
 .grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));align-items:start;
   gap:12px;padding:18px 24px 90px;overflow-y:auto;flex:1;background:var(--bg);
+  /* Rows sized by content: .card's overflow:hidden would otherwise let them shrink to fit and overlap. */
+  grid-auto-rows:max-content;align-content:start;
   scrollbar-width:thin;scrollbar-color:var(--scrollbar) transparent;
 }
 .grid::-webkit-scrollbar{width:4px}
@@ -147,8 +157,17 @@ nav{padding:10px 8px;flex:1}
 @media(hover:hover) and (pointer:fine){.card:hover::after{animation:shine .6s var(--ease-out) forwards}}
 @keyframes shine{to{transform:translateX(160%)}}
 @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(0.97)}to{opacity:1;transform:none}}
-.ctitle{font-size:13px;font-weight:500;margin-bottom:5px;line-height:1.4;color:var(--text-s);padding-right:60px}
-.cbody{font-size:12px;color:var(--text-m);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Title button: the card's keyboard control. Looks like plain text; its focus
+   ring is drawn around the whole card. */
+.card-open{
+  display:block;width:100%;margin:0;padding:0;border:0;background:none;
+  font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.card:has(.card-open:focus-visible){outline:2px solid var(--text-s);outline-offset:2px}
+@supports selector(:has(a)){.card-open:focus-visible{outline:none}}
+.ctitle{font-size:13px;font-weight:500;margin-bottom:5px;line-height:1.4;color:var(--text-s);padding-right:60px;
+  overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cbody{font-size:12px;color:var(--text-m);line-height:1.5;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cmeta{display:flex;justify-content:space-between;align-items:center;margin-top:9px}
 .cdate{font-size:10.5px;color:var(--text-m)}
 .ctag{font-size:10px;padding:2.5px 8px;border-radius:20px;font-weight:500;letter-spacing:.1px}
@@ -157,6 +176,16 @@ nav{padding:10px 8px;flex:1}
 /* ── Card buttons ── */
 .card-actions{position:absolute;top:8px;right:8px;display:flex;gap:3px;opacity:0;transition:opacity 150ms var(--ease-out);z-index:1}
 @media(hover:hover) and (pointer:fine){.card:hover .card-actions{opacity:1}}
+/* Keyboard focus on the card or one of its buttons shows them at once (no
+   fade: the focused button must never be invisible); mouse focus doesn't. */
+.card:has(:focus-visible) .card-actions{opacity:1;transition:none}
+@supports not selector(:has(a)){.card:focus-within .card-actions{opacity:1;transition:none}}
+/* No hover on touch screens: always show them (they are tappable anyway) and
+   keep the title clear of them. */
+@media(hover:none){
+  .card-actions{opacity:1}
+  .ctitle{padding-right:76px}
+}
 .card-btn{
   width:24px;height:24px;border-radius:7px;border:1px solid var(--border-2);background:var(--surface);
   cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -187,13 +216,17 @@ nav{padding:10px 8px;flex:1}
   position:absolute;inset:0;background:var(--overlay);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity 200ms var(--ease-out);z-index:50;
+  /* visibility (switched after the fade) keeps a closed dialog out of the Tab
+     order and the accessibility tree. */
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity 200ms var(--ease-out),visibility 0s linear 200ms;z-index:50;
+  overflow-y:auto;padding:16px 0;
 }
-.ov.open{opacity:1;pointer-events:all}
+.ov.open{opacity:1;visibility:visible;pointer-events:all;transition-delay:0s}
 
 /* ── Edit/create modal ── */
 .modal{
-  background:var(--surface);border:1px solid var(--border-2);border-radius:16px;padding:22px;width:308px;
+  background:var(--surface);border:1px solid var(--border-2);border-radius:16px;padding:22px;width:308px;margin:auto;
   transform:scale(.95) translateY(8px);
   transition:transform 280ms var(--ease-spring),opacity 200ms var(--ease-out);
   opacity:0;box-shadow:0 12px 48px var(--shadow-2),0 2px 8px var(--shadow);
@@ -201,11 +234,12 @@ nav{padding:10px 8px;flex:1}
 .ov.open .modal{transform:scale(1) translateY(0);opacity:1}
 .modal h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text-s)}
 .modal input,.modal textarea,.modal select{
-  width:100%;border:1px solid var(--border-2);border-radius:9px;padding:9px 10px;font-size:13px;
-  color:var(--text-s);background:var(--surface-2);outline:none;font-family:inherit;
+  width:100%;border:1px solid var(--border-input);border-radius:9px;padding:9px 10px;font-size:13px;
+  color:var(--text-s);background:var(--surface-2);font-family:inherit;
   transition:border-color 150ms var(--ease-out),background 150ms;margin-bottom:9px;display:block;
 }
-.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--border-3);background:var(--surface)}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--text-m);background:var(--surface)}
+.modal input::placeholder,.modal textarea::placeholder{color:var(--text-f)}
 .modal textarea{resize:none;height:76px;line-height:1.55}
 .modal select{appearance:none;-webkit-appearance:none;cursor:pointer}
 .wcount{font-size:11px;color:var(--text-m);text-align:right;margin:-4px 0 8px;min-height:14px}
@@ -230,7 +264,7 @@ nav{padding:10px 8px;flex:1}
 /* ── View modal ── */
 .view-modal{
   background:var(--surface);border:1px solid var(--border-2);border-radius:18px;
-  padding:22px 24px;width:480px;max-width:calc(100vw - 32px);max-height:76vh;
+  padding:22px 24px;width:480px;max-width:calc(100vw - 32px);max-height:76vh;margin:auto;
   display:flex;flex-direction:column;
   transform:scale(.95) translateY(8px);
   transition:transform 280ms var(--ease-spring),opacity 200ms var(--ease-out);
@@ -283,8 +317,9 @@ nav{padding:10px 8px;flex:1}
 .mnav{display:none}
 
 /* ── Login ── */
-.login-wrap{display:flex;align-items:center;justify-content:center;width:100vw;height:100dvh;background:var(--bg)}
-.login-box{text-align:center;padding:40px}
+/* Auto margins centre the box but never push it above the scrollable area (zoom, landscape phones). */
+.login-wrap{display:flex;width:100%;height:100dvh;overflow-y:auto;background:var(--bg)}
+.login-box{text-align:center;padding:40px;margin:auto}
 .login-icon{font-size:44px;margin-bottom:14px;line-height:1}
 .login-box h1{font-size:28px;font-weight:600;letter-spacing:-.6px;color:var(--text-s);margin-bottom:6px}
 .login-box > p{font-size:13px;color:var(--text-m);margin-bottom:30px}
@@ -304,11 +339,11 @@ nav{padding:10px 8px;flex:1}
 .or-row::before,.or-row::after{content:'';flex:1;height:1px;background:var(--border-2)}
 .or-row span{font-size:11px;color:var(--text-m);flex-shrink:0}
 .email-input{
-  width:240px;padding:10px 12px;border:1px solid var(--border-2);border-radius:11px;
-  font-size:13px;font-family:inherit;outline:none;color:var(--text-s);background:var(--surface-2);
+  width:240px;padding:10px 12px;border:1px solid var(--border-input);border-radius:11px;
+  font-size:13px;font-family:inherit;color:var(--text-s);background:var(--surface-2);
   transition:border-color 140ms,background 140ms;display:block;margin:0 auto;
 }
-.email-input:focus{border-color:var(--border-3);background:var(--surface)}
+.email-input:focus{border-color:var(--text-m);background:var(--surface)}
 .email-input::placeholder{color:var(--text-f)}
 .email-btn{width:240px;margin:8px auto 0;justify-content:center;padding:11px 0;display:flex}
 .email-btn:disabled{opacity:.5;cursor:default;transform:none!important;box-shadow:none!important}
@@ -323,9 +358,9 @@ nav{padding:10px 8px;flex:1}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;
 }
 .attempt-dots{display:flex;gap:5px;justify-content:center;margin:10px 0 4px}
-.attempt-dot{width:8px;height:8px;border-radius:50%;background:var(--border-2);transition:background 200ms}
-.attempt-dot.used{background:#e07060}
-.lockout-msg{font-size:12px;color:#e07060;text-align:center;margin:6px 0;font-weight:500}
+.attempt-dot{width:8px;height:8px;border-radius:50%;background:var(--border-input);transition:background 200ms}
+.attempt-dot.used{background:var(--err)}
+.lockout-msg{font-size:12px;color:var(--err);text-align:center;margin:6px 0;font-weight:500}
 .login-err{display:none;color:var(--err);font-size:13px;margin:0 auto 14px;max-width:280px;text-align:center}
 .otp-hint{font-size:12px;color:var(--text-m);margin:0 0 14px;text-align:center;line-height:1.5}
 /* The floating reCAPTCHA badge would cover the FAB. Hiding it is allowed as
@@ -335,20 +370,27 @@ nav{padding:10px 8px;flex:1}
 .recaptcha-note a{color:inherit;text-decoration:underline}
 .link-sent-icon{font-size:38px;line-height:1;margin-bottom:12px}
 
+/* ── Legal links (landing, login, end of the note grid) ── */
+.legal-links{font-size:11.5px;line-height:1.6;color:var(--text);margin:16px auto 0;max-width:280px}
+.landing .legal-links{margin-top:34px;max-width:none;text-align:center}
+.grid-foot{grid-column:1/-1;font-size:11px;line-height:1.6;color:var(--text);text-align:center;padding:12px 0 0}
+.legal-links a,.grid-foot a{color:inherit;text-underline-offset:2px}
+
 /* ── Toast ── */
 .toast{
   position:fixed;bottom:26px;left:50%;transform:translate(-50%,16px);
   background:var(--accent);color:var(--accent-t);border-radius:12px;padding:11px 16px;
   font-size:13px;display:flex;align-items:center;gap:14px;z-index:300;
-  box-shadow:0 8px 30px var(--shadow-2);opacity:0;pointer-events:none;
-  transition:opacity 200ms var(--ease-out),transform 250ms var(--ease-spring);
-  max-width:calc(100vw - 32px);white-space:nowrap;
+  box-shadow:0 8px 30px var(--shadow-2);opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity 200ms var(--ease-out),transform 250ms var(--ease-spring),visibility 0s linear 200ms;
+  max-width:calc(100vw - 32px);
 }
-.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:all}
+.toast.show{opacity:1;visibility:visible;transform:translate(-50%,0);pointer-events:all;transition-delay:0s}
 .toast button{
   background:none;border:none;color:inherit;font:inherit;font-weight:600;
-  cursor:pointer;text-decoration:underline;padding:0;
+  cursor:pointer;text-decoration:underline;padding:0;white-space:nowrap;
 }
+.toast button:focus-visible{outline-color:var(--accent-t)}
 
 /* ── Skeleton cards ── */
 .sk-card{
@@ -390,13 +432,13 @@ nav{padding:10px 8px;flex:1}
 
 @media(max-width:640px){
   #theme-toggle{right:52px}
-  .toast{bottom:88px}
+  .toast{bottom:132px} /* above the FAB */
   .sidebar{display:none}
   .topbar{padding:16px 14px 0}
   .mob-av{display:flex}
   .grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px;padding:12px 14px 80px}
   .fab{bottom:74px;right:16px;width:46px;height:46px}
-  .ov .modal,.ov .view-modal{width:calc(100vw - 32px);margin:0 16px}
+  .ov .modal,.ov .view-modal{width:calc(100vw - 32px);margin:auto 16px}
   .mnav{
     display:flex;border-top:1px solid var(--border);background:var(--surface-2);flex-shrink:0;
     padding-bottom:env(safe-area-inset-bottom,0px);
@@ -408,13 +450,14 @@ nav{padding:10px 8px;flex:1}
   }
   .mn-btn span{font-size:16px;line-height:1}
   .mn-btn.on{color:var(--text-s);font-weight:600}
+  .mn-btn:focus-visible{outline-offset:-2px} /* .main clips anything below the nav */
 }
 /* ── Landing ── */
 .landing{
   position:fixed;inset:0;z-index:50;overflow-y:auto;background:var(--bg);color:var(--text);
   display:flex;align-items:center;justify-content:center;padding:48px 24px;
 }
-.landing-inner{width:100%;max-width:560px;text-align:center;animation:landing-in 500ms var(--ease-out) both}
+.landing-inner{width:100%;max-width:560px;margin:auto;text-align:center;animation:landing-in 500ms var(--ease-out) both}
 @keyframes landing-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .landing-mark{font-size:52px;line-height:1;margin-bottom:18px}
 .landing-title{font-size:clamp(34px,7vw,52px);font-weight:600;letter-spacing:-1px;color:var(--text-s);margin-bottom:14px}
@@ -450,8 +493,8 @@ nav{padding:10px 8px;flex:1}
 
 
 @media(max-width:480px){
-  .login-wrap{align-items:flex-start;padding-top:clamp(24px,7vh,56px)}
-  .login-box{padding:20px 20px 32px;width:100%}
+  .login-wrap{padding-top:clamp(24px,7vh,56px)}
+  .login-box{padding:20px 20px 32px;width:100%;margin:0 auto auto}
   .login-icon{font-size:34px;margin-bottom:10px}
   .login-box h1{font-size:22px;margin-bottom:4px;letter-spacing:-.3px}
   .login-box > p{font-size:12px;margin-bottom:20px}
