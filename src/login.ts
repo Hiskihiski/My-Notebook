@@ -5,13 +5,17 @@ import {
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
 import { PENDING_REDIRECT_KEY, setFlag } from "./boot";
+import {
+  EMAIL_FOR_SIGN_IN_KEY, serializeSignInEmail, cooldownSeconds, linkErrorMessage,
+} from "./email-link";
 
-// localStorage key the email-link completion step (session.ts) reads back.
-export const EMAIL_FOR_SIGN_IN_KEY = "emailForSignIn";
 
 // ── Brute-force guard (client-side UX only — Firebase enforces real limits) ──
 const bfMap = new Map<string, { count: number; lockedUntil: number }>();
 let lockoutTimer: ReturnType<typeof setInterval> | null = null;
+
+// When each address (lower-cased) last got a sign-in link, for the cooldown.
+const linkSentAt = new Map<string, number>();
 
 function bfSecondsLeft(email: string): number {
   const e = bfMap.get(email);
@@ -197,13 +201,23 @@ export function renderLogin(root: HTMLElement): void {
   $("back-from-password").addEventListener("click", () => { showStep("email"); $<HTMLInputElement>("pw-input").value = ""; });
 
   // ── Email sign-in link (passwordless; creates the account on first use) ─────
+  // Returns false (and shows why) while the address is in its resend cooldown.
+  function linkAllowed(email: string): boolean {
+    const wait = cooldownSeconds(linkSentAt, email, Date.now());
+    if (wait > 0) showErr(`You can request another link in ${wait}s.`);
+    return wait === 0;
+  }
+
   async function doSendLink(email: string): Promise<void> {
     await sendSignInLinkToEmail(auth, email, {
       url: window.location.origin + window.location.pathname,
       handleCodeInApp: true,
     });
-    // Remembered so the link can be completed without re-typing the email.
-    localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, email);
+    linkSentAt.set(email.trim().toLowerCase(), Date.now());
+    // Remembered (for EMAIL_MAX_AGE_MS) so the link can be completed without
+    // re-typing the email; not remembering it only means a prompt later.
+    try { localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, serializeSignInEmail(email, Date.now())); }
+    catch { console.warn("Sign-in email not remembered: site data is blocked"); }
     $<HTMLElement>("badge-link-sent").textContent = email;
     showStep("link-sent");
   }
@@ -211,11 +225,12 @@ export function renderLogin(root: HTMLElement): void {
   $<HTMLButtonElement>("send-link-btn").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("send-link-btn");
     hideErr();
+    if (!linkAllowed(currentEmail)) return;
     btn.disabled = true; btn.textContent = "Sending…";
     try {
       await doSendLink(currentEmail);
     } catch (err: unknown) {
-      showErr(`Could not send link: ${(err as Error).message ?? "unknown"}`);
+      showErr(linkErrorMessage((err as { code?: string }).code ?? "", (err as Error).message));
     } finally {
       btn.disabled = false; btn.innerHTML = "&#x2709;&#xFE0F; Email me a sign-in link";
     }
@@ -223,13 +238,15 @@ export function renderLogin(root: HTMLElement): void {
 
   $<HTMLButtonElement>("resend-link").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("resend-link");
-    hideErr(); btn.textContent = "Sending…";
+    hideErr();
+    if (!linkAllowed(currentEmail)) return;
+    btn.textContent = "Sending…";
     try {
       await doSendLink(currentEmail);
       btn.textContent = "Sent!";
       setTimeout(() => { btn.textContent = "Resend link"; }, 2500);
     } catch (err: unknown) {
-      showErr(`Could not send link: ${(err as Error).message ?? "unknown"}`);
+      showErr(linkErrorMessage((err as { code?: string }).code ?? "", (err as Error).message));
       btn.textContent = "Resend link";
     }
   });
