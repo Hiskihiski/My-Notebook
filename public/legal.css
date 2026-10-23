@@ -1,0 +1,22 @@
+/* Static legal pages (impressum.html, datenschutz.html, 404.html). No JS, so
+   the theme follows the system setting. Colors mirror src/style.css. */
+:root{--bg:#f0f0ed;--surface:#ffffff;--text:#66645f;--text-s:#1a1a1a;--text-m:#6b6b6a;--border:#e0e0db}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#0d0d10;--surface:#141418;--text:#a0a0a6;--text-s:#e6e6e3;--text-m:#8e8e94;--border:#38383f}
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;line-height:1.65;font-size:15px}
+.legal{max-width:720px;margin:0 auto;padding:40px 20px 64px}
+.legal h1{color:var(--text-s);font-size:clamp(26px,5vw,34px);font-weight:600;letter-spacing:-.5px;margin:12px 0 6px}
+.legal h2{color:var(--text-s);font-size:17px;font-weight:600;margin:32px 0 8px}
+.legal p,.legal ul{margin:0 0 12px}
+.legal ul{padding-left:20px}
+.legal li{margin-bottom:6px}
+.legal a{color:var(--text-s);text-underline-offset:2px}
+.legal a:focus-visible{outline:2px solid var(--text-s);outline-offset:2px;border-radius:2px}
+.legal code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text-s)}
+.legal-meta,.legal-back,.legal-foot{color:var(--text-m);font-size:13px}
+.legal-foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--border)}
+@media print{body{background:#fff;color:#000}.legal a{color:#000}.legal-back{display:none}}
+.legal-center{text-align:center;padding-top:18vh}

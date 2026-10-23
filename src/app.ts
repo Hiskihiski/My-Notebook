@@ -36,6 +36,13 @@ export function teardownApp(): void {
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
 }
 
+// Legal links and the reCAPTCHA attribution: App Check keeps running while
+// signed in, and hiding the badge (style.css) requires this notice.
+const LEGAL_FOOT = `<p class="grid-foot">Protected by reCAPTCHA – the Google
+  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+  <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
+  · <a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a></p>`;
+
 const SKELETONS =
   `<div class="sk-card"><div class="sk-line t"></div><div class="sk-line b"></div><div class="sk-line b2"></div><div class="sk-line g"></div></div>`.repeat(6);
 
@@ -198,7 +205,7 @@ function renderCards(): void {
 
   if (!list.length) {
     const firstTime = notes.length === 0 && filter === "all" && !searchQuery;
-    grid.innerHTML = firstTime
+    grid.innerHTML = (firstTime
       ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
                      height:240px;gap:10px;grid-column:1/-1;text-align:center">
            <span style="font-size:40px;opacity:.2">&#x1F4D3;</span>
@@ -211,7 +218,7 @@ function renderCards(): void {
                      height:200px;color:var(--text-m);font-size:13px;gap:8px;grid-column:1/-1">
            <span style="font-size:28px;opacity:.3">&#x1F5D2;</span>
            Nothing here yet
-         </div>`;
+         </div>`) + LEGAL_FOOT;
     return;
   }
 
@@ -232,7 +239,7 @@ function renderCards(): void {
       </div>
     </div>
   `;
-  }).join("");
+  }).join("") + LEGAL_FOOT;
 }
 
 // ── View modal ─────────────────────────────────────────────────────────────────
@@ -414,7 +421,7 @@ function showLoadError(): void {
        <span style="font-size:28px;opacity:.3">&#x26A0;&#xFE0F;</span>
        Couldn't load your notes.
        <button class="btn" id="notes-retry">Retry</button>
-     </div>`;
+     </div>` + LEGAL_FOOT;
 }
 
 // ── Filter / sort ─────────────────────────────────────────────────────────────

@@ -82,6 +82,8 @@ export function renderLogin(root: HTMLElement): void {
         <p class="recaptcha-note">This site is protected by reCAPTCHA and the Google
           <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
           <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.</p>
+        <p class="legal-links">Signing in creates an account for your notes.<br>
+          How we handle your data: <a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a></p>
       </div>
     </div>
   `;
