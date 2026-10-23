@@ -34,7 +34,7 @@ export function renderLogin(root: HTMLElement): void {
     <div class="login-wrap">
       <div class="login-box">
         <div class="login-icon">&#x1F4D3;</div>
-        <h1>Notebook</h1>
+        <h1 tabindex="-1">Notebook</h1>
         <p>Sign in or create an account</p>
         <div class="login-err" id="login-err"></div>
 
@@ -72,7 +72,7 @@ export function renderLogin(root: HTMLElement): void {
         <div id="step-link-sent" style="display:none">
           <div class="link-sent-icon">&#x2709;&#xFE0F;</div>
           <div class="email-badge" id="badge-link-sent"></div>
-          <p class="otp-hint">We sent a sign-in link to your email.<br>
+          <p class="otp-hint" id="link-sent-msg" tabindex="-1">We sent a sign-in link to your email.<br>
              Open it on this device to finish signing in.<br>
              Check your spam folder too.</p>
           <button class="back-link" id="resend-link" style="margin-top:8px">Resend link</button>
@@ -94,11 +94,15 @@ export function renderLogin(root: HTMLElement): void {
 
   let currentEmail = "";
 
+  // Where focus goes when a step appears and the focused control was hidden.
+  const STEP_FOCUS = { "email": "email-input", "password": "pw-input", "link-sent": "link-sent-msg" } as const;
+
   function showStep(step: "email" | "password" | "link-sent"): void {
     $("step-email").style.display     = step === "email"     ? "" : "none";
     $("step-password").style.display  = step === "password"  ? "" : "none";
     $("step-link-sent").style.display = step === "link-sent" ? "" : "none";
     hideErr();
+    if (!$(`step-${step}`).contains(document.activeElement)) $(STEP_FOCUS[step]).focus();
   }
 
   // ── Google ──────────────────────────────────────────────────────────────────
@@ -231,4 +235,8 @@ export function renderLogin(root: HTMLElement): void {
   });
 
   $("back-from-link-sent").addEventListener("click", () => showStep("email"));
+
+  // The previous screen (landing, app, spinner) and its focus are gone: start
+  // keyboard and screen-reader users at the top of the sign-in box.
+  root.querySelector<HTMLElement>(".login-box h1")?.focus();
 }

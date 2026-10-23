@@ -61,12 +61,16 @@ export function showToast(msg: string, undo?: () => void, actionLabel = "Undo"):
     fn?.();
   });
   el.classList.add("show");
+  el.inert = false;
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(hideToast, 5000);
 }
 
+// inert right away: the fade-out keeps the old Undo button visible (and,
+// without it, focusable) for another 200 ms; visibility:hidden does the rest.
 export function hideToast(): void {
-  document.getElementById("toast")?.classList.remove("show");
+  const el = document.getElementById("toast");
+  if (el) { el.classList.remove("show"); el.inert = true; }
   toastUndo = null;
   if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
 }
