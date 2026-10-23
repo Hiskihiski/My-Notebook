@@ -44,6 +44,8 @@ The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the
 
 **App shell (`src/app.ts`)** — holds all app state as module-level `let`s (`notes`, `filter`, `searchQuery`, `sortOrder`, `editingId`, `viewId`, `unsubNotes`, timers, keyboard handler). **`teardownApp()` must be called on every auth change** (including sign-out) — it unsubscribes the Firestore listener, clears timers, removes the global keydown handler, and resets state. Adding new listeners/timers means adding matching cleanup in `teardownApp`.
 
+Dialogs (`#ov`, `#ov-view`) are `role="dialog"`/`aria-modal`; while one is open the rest of the app is `inert`, Tab is trapped (`trapTab` in `src/focus.ts`) and focus returns to the opener on close. `renderCards()` rebuilds the grid with `innerHTML`, so it saves and restores keyboard focus (`saveFocus`/`restoreFocus`) — keep that when adding re-renders.
+
 Notes are read via a live `onSnapshot` on `collection("notes") where uid == user.uid`. Sorting is client-side: pinned notes always float to the top, then newest/oldest/A–Z. Deletes are optimistic-with-undo via a toast (see `deleteNote`) — the doc is deleted immediately and re-`addDoc`'d if Undo is pressed (this generates a *new* doc id).
 
 Writes (`saveNote`, `deleteNote`) are **not awaited**: Firestore applies them to the local cache immediately (so `onSnapshot` updates the list) but only settles the promise once the server confirms, which never happens offline. The UI closes/confirms right away and only a `.catch` reports failures; keep new writes on that pattern or offline saves hang.
