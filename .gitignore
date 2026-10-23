@@ -14,6 +14,13 @@ dist-ssr
 
 # Local environment — holds the real (rotated) Firebase API key
 .env
+.env.*
+!.env.example
+
+# Firebase / Google credentials that must never be committed
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+.runtimeconfig.json
 
 # Editor directories and files
 .vscode/*
