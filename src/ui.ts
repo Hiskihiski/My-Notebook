@@ -89,7 +89,10 @@ function toastRoot(): HTMLElement {
   el.addEventListener("click", (e) => {
     if (e.target instanceof Element && e.target.closest("#toast-undo")) runToastAction();
   });
-  document.body.appendChild(el);
+  // Right after the theme toggle (first in <body>), so Undo is one Tab from
+  // the top of the page.
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) toggle.after(el); else document.body.prepend(el);
   return el;
 }
 
@@ -209,7 +212,7 @@ function renderThemeToggle(): void {
   btn.title = "Toggle dark mode";
   btn.setAttribute("aria-label", "Dark mode");
   btn.addEventListener("click", toggleTheme);
-  document.body.appendChild(btn);
+  document.body.prepend(btn); // first in the Tab order, as it is top-most on screen
   updateThemeIcon();
 }
 

@@ -35,6 +35,7 @@ let focusTimer:      ReturnType<typeof setTimeout> | null  = null;
 export function teardownApp(): void {
   unsubNotes?.(); unsubNotes = null;
   if (quoteTimer) { clearInterval(quoteTimer); quoteTimer = null; }
+  document.body.classList.remove("dialog-open");
   if (focusTimer) { clearTimeout(focusTimer); focusTimer = null; }
   if (keyboardHandler) { document.removeEventListener("keydown", keyboardHandler); keyboardHandler = null; }
   hideToast();
@@ -98,7 +99,8 @@ export function renderApp(root: HTMLElement, user: User): void {
           <div class="ndiv"></div>
           <button type="button" class="ni ni-danger" id="signout-btn">Sign out</button>
         </nav>
-        <div class="mascot">
+        <button type="button" class="mascot" id="mascot" aria-pressed="false" aria-labelledby="mascot-label qb" title="Pause or resume the quotes">
+          <span class="sr-only" id="mascot-label">Pause quotes:</span>
           <div class="qbox" id="qb">You got this. Probably.</div>
           <svg class="fig" id="fig" width="46" height="60" viewBox="0 0 46 60" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
             <circle class="mbody" cx="23" cy="13" r="11.5"/>
@@ -117,7 +119,7 @@ export function renderApp(root: HTMLElement, user: User): void {
             <line class="mlimb" x1="23" y1="42" x2="15.5" y2="56" stroke-width="2" stroke-linecap="round"/>
             <line class="mlimb" x1="23" y1="42" x2="30.5" y2="56" stroke-width="2" stroke-linecap="round"/>
           </svg>
-        </div>
+        </button>
       </aside>
 
       <main class="main">
@@ -346,6 +348,7 @@ const DIALOG_BACKGROUND = ".sidebar, .topbar, #grid, #fab, #mnav";
 function showOverlay(ov: HTMLElement, open: boolean): void {
   ov.classList.toggle("open", open);
   ov.inert = !open;
+  document.body.classList.toggle("dialog-open", open); // hides the floating theme toggle
   document.querySelectorAll<HTMLElement>(DIALOG_BACKGROUND).forEach((el) => { el.inert = open; });
 }
 
@@ -685,7 +688,10 @@ function bindEvents(user: User): void {
       if (!$("ov")?.classList.contains("open") && !$("ov-view")?.classList.contains("open")) openModal();
       return;
     }
-    if (e.key === "/" && !inInput) {
+    // "/" only while no control has focus (WCAG 2.1.4: a single-key shortcut
+    // must not fire on buttons or fields); Ctrl/Cmd+K works everywhere.
+    const searchKey = e.key === "/" && (document.activeElement === document.body || document.activeElement === null);
+    if ((searchKey || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) && !openDialog()) {
       e.preventDefault();
       $<HTMLInputElement>("search-input")?.focus();
     }
@@ -696,7 +702,7 @@ function bindEvents(user: User): void {
 // ── Mascot ────────────────────────────────────────────────────────────────────
 function startMascot(): void {
   let qi = 0;
-  quoteTimer = setInterval(() => {
+  const rotate = (): void => {
     const qb  = $("qb");
     const fig = $("fig");
     if (!qb || !fig) return;
@@ -708,5 +714,15 @@ function startMascot(): void {
       fig.classList.add("boing");
       setTimeout(() => fig.classList.remove("boing"), 600);
     }, 290);
-  }, 4000);
+  };
+  // Auto-rotating text needs a way to stop it (WCAG 2.2.2): the mascot is a
+  // pause toggle, and it starts paused for people who prefer reduced motion.
+  const btn = $<HTMLButtonElement>("mascot");
+  const setPaused = (paused: boolean): void => {
+    btn?.setAttribute("aria-pressed", String(paused));
+    if (quoteTimer) { clearInterval(quoteTimer); quoteTimer = null; }
+    if (!paused) quoteTimer = setInterval(rotate, 4000);
+  };
+  setPaused(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  btn?.addEventListener("click", () => setPaused(btn.getAttribute("aria-pressed") !== "true"));
 }
