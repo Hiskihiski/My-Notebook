@@ -218,6 +218,18 @@ export function renderApp(root: HTMLElement, user: User): void {
   if (fromScreen) $("ptitle").focus();
 }
 
+// Lower-cased title, markdown source and the text it renders to, per note
+// object (a snapshot creates new objects, so edits refresh it).
+const searchTexts = new WeakMap<Note, string>();
+function searchText(n: Note): string {
+  let t = searchTexts.get(n);
+  if (t === undefined) {
+    t = `${n.title} ${n.body} ${markdownText(n.body)}`.toLowerCase();
+    searchTexts.set(n, t);
+  }
+  return t;
+}
+
 // ── Card rendering ─────────────────────────────────────────────────────────────
 // `announce`: the user changed the filter or search, so tell screen readers
 // how many notes are shown now (#grid-status, a polite live region).
@@ -246,7 +258,7 @@ function visibleNotes(): Note[] {
   const filtered = notes.filter((n) =>
     (filter === "pinned" ? n.pinned : filter === "all" ? true : n.tag === filter) &&
     // Search the markdown source and the text it renders to ("**bold**" and "bold").
-    (!searchQuery || `${n.title} ${n.body} ${markdownText(n.body)}`.toLowerCase().includes(searchQuery))
+    (!searchQuery || searchText(n).includes(searchQuery))
   );
 
   // Pinned notes always float to top, then sort by chosen order
@@ -380,6 +392,8 @@ function refreshView(): void {
 // `returnTo`: where focus goes on close; defaults to the currently focused control.
 function openModal(id?: string, returnTo?: SavedFocus | null): void {
   const back = returnTo === undefined ? saveFocus(document.activeElement, $("grid"), CARD_FOCUS) : returnTo;
+  const n = id ? notes.find((x) => x.id === id) : undefined;
+  if (id && !n) { dialogReturn = back; returnFocus(); return; } // deleted meanwhile (e.g. on another device)
   editingId = id ?? null;
   const ntEl   = $<HTMLInputElement>("nt");
   const nbEl   = $<HTMLTextAreaElement>("nb");
@@ -388,9 +402,7 @@ function openModal(id?: string, returnTo?: SavedFocus | null): void {
   clearModalError();
   const saveBtn = $<HTMLButtonElement>("save-btn");
   saveBtn.disabled = false;
-  if (id) {
-    const n = notes.find((x) => x.id === id);
-    if (!n) return;
+  if (n) {
     $("modal-title").textContent = "Edit note";
     saveBtn.textContent          = "Save";
     ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = n.tag; npinEl.checked = n.pinned;
@@ -736,9 +748,11 @@ function bindEvents(user: User): void {
       if (!$("ov")?.classList.contains("open") && !$("ov-view")?.classList.contains("open")) openModal();
       return;
     }
-    // "/" only while no control has focus (WCAG 2.1.4: a single-key shortcut
+    // "/" only while no control has focus – body or a non-interactive focus
+    // target such as the page heading (WCAG 2.1.4: a single-key shortcut
     // must not fire on buttons or fields); Ctrl/Cmd+K works everywhere.
-    const searchKey = e.key === "/" && (document.activeElement === document.body || document.activeElement === null);
+    const ae = document.activeElement;
+    const searchKey = e.key === "/" && (!ae || ae === document.body || ae.getAttribute("tabindex") === "-1");
     if ((searchKey || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) && !openDialog()) {
       e.preventDefault();
       $<HTMLInputElement>("search-input")?.focus();
