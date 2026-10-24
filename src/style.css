@@ -527,3 +527,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
   .back-link{font-size:11px}
   .search-hint{display:none}
 }
+
+/* ── Print: only the open note (or the note list), no app chrome ── */
+@media print{
+  html,body,#app,.app,.main{height:auto;overflow:visible;background:#fff}
+  #theme-toggle,.toast,.sidebar,.topbar,.fab,.mnav,.card-actions,.grid-foot,.view-actions,#view-close{display:none}
+  .grid{overflow:visible;padding:0;background:none}
+  .card{break-inside:avoid;box-shadow:none;max-height:none}
+  .dialog-open .grid{display:none}
+  .ov{position:static;inset:auto;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:0}
+  .ov:not(.open){display:none}
+  .view-modal{width:auto;max-width:none;max-height:none;border:none;box-shadow:none;padding:0;overflow:visible}
+  .view-body{overflow:visible}
+}
