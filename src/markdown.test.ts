@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMd, previewMd } from "./markdown";
+import { renderMd, previewMd, markdownText } from "./markdown";
 
 describe("renderMd", () => {
   it("renders basic Markdown", () => {
@@ -47,5 +47,14 @@ describe("previewMd", () => {
 
   it("strips headings, bullets and inline code markers", () => {
     expect(previewMd("# Title\n- item\n`code`")).toBe("Title\nitem\ncode");
+  });
+});
+
+describe("markdownText", () => {
+  it("returns the text a note renders to", () => {
+    expect(markdownText("Some *idea* with **bold**")).toBe("Some idea with bold");
+    expect(markdownText("~~old~~ and `code` and __under__")).toBe("old and code and under");
+    expect(markdownText("# Title\n> quote\n- item\n2. second")).toBe("Title\nquote\nitem\nsecond");
+    expect(markdownText("see [the docs](https://x.example/a_b) ![logo](l.png)")).toBe("see the docs logo");
   });
 });

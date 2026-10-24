@@ -1,6 +1,7 @@
 import {
   collection, query, where, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  terminate, clearIndexedDbPersistence, waitForPendingWrites,
 } from "firebase/firestore";
 import { signOut, type User } from "firebase/auth";
 import { auth, db } from "./firebase";
@@ -11,8 +12,8 @@ import {
 import {
   $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast, mountToast, undoFromToast,
 } from "./ui";
-import { renderMd, previewMd } from "./markdown";
-import { parseDraft } from "./draft";
+import { renderMd, previewMd, markdownText } from "./markdown";
+import { parseDraft, isDraftChanged } from "./draft";
 import { saveFocus, restoreFocus, tabbables, trapTarget, type ListFocusConfig, type SavedFocus } from "./focus";
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -29,11 +30,13 @@ let keyboardHandler: ((e: KeyboardEvent) => void) | null   = null;
 let draftKey:        string | null                         = null;
 let dialogReturn:    SavedFocus | null                     = null; // focus target once the open dialog closes
 let focusTimer:      ReturnType<typeof setTimeout> | null  = null;
+let editOriginal:    Draft | null                          = null; // note as the edit dialog opened it
 
 // Called on every auth change (including sign-out) so listeners and timers
 // from a previous session never leak into the next render.
 export function teardownApp(): void {
   unsubNotes?.(); unsubNotes = null;
+  editOriginal = null;
   if (quoteTimer) { clearInterval(quoteTimer); quoteTimer = null; }
   document.body.classList.remove("dialog-open");
   if (focusTimer) { clearTimeout(focusTimer); focusTimer = null; }
@@ -241,7 +244,8 @@ function resultStatus(count: number): string {
 function visibleNotes(): Note[] {
   const filtered = notes.filter((n) =>
     (filter === "pinned" ? n.pinned : filter === "all" ? true : n.tag === filter) &&
-    (!searchQuery || `${n.title} ${n.body}`.toLowerCase().includes(searchQuery))
+    // Search the markdown source and the text it renders to ("**bold**" and "bold").
+    (!searchQuery || `${n.title} ${n.body} ${markdownText(n.body)}`.toLowerCase().includes(searchQuery))
   );
 
   // Pinned notes always float to top, then sort by chosen order
@@ -389,6 +393,7 @@ function openModal(id?: string, returnTo?: SavedFocus | null): void {
     $("modal-title").textContent = "Edit note";
     saveBtn.textContent          = "Save";
     ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = n.tag; npinEl.checked = n.pinned;
+    editOriginal = modalDraft();
   } else {
     $("modal-title").textContent = "New note";
     saveBtn.textContent          = "Add note";
@@ -408,8 +413,26 @@ function openModal(id?: string, returnTo?: SavedFocus | null): void {
   }, 210);
 }
 
+function modalDraft(): Draft {
+  return {
+    title:  $<HTMLInputElement>("nt").value,
+    body:   $<HTMLTextAreaElement>("nb").value,
+    tag:    $<HTMLSelectElement>("ntag").value as Tag,
+    pinned: $<HTMLInputElement>("npin").checked,
+  };
+}
+
+// Esc, backdrop and Cancel: edits to an existing note aren't kept as a draft,
+// so confirm before throwing them away.
+function requestCloseModal(): void {
+  if (editingId && editOriginal && isDraftChanged(editOriginal, modalDraft())
+      && !confirm("Discard your changes to this note?")) return;
+  closeModal();
+}
+
 function closeModal(): void {
   editingId = null;
+  editOriginal = null;
   if (focusTimer) { clearTimeout(focusTimer); focusTimer = null; }
   const ov = $("ov");
   if (!ov?.classList.contains("open")) return;
@@ -443,6 +466,38 @@ function deleteNote(id: string): void {
   showToast("Note deleted", () => {
     addDoc(collection(db, "notes"), restore).catch(console.error);
   });
+}
+
+// ── Sign-out cleanup ─────────────────────────────────────────────────────────
+// True once every write has reached the server; false if some are still
+// pending after a few seconds (typically offline).
+function pendingWritesSynced(): Promise<boolean> {
+  return Promise.race([
+    waitForPendingWrites(db).then(() => true, () => false),
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
+  ]);
+}
+
+// Deletes Firestore's offline cache (IndexedDB) and its multi-tab bookkeeping
+// in localStorage. Fails while another tab still uses the cache; that tab
+// clears it when it signs out.
+async function clearLocalNotes(): Promise<void> {
+  try {
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+  } catch (err: unknown) {
+    console.warn("Offline notes cache not cleared:", err);
+  }
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("firestore_")) keys.push(k);
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch (err: unknown) {
+    console.warn("Firestore tab state not cleared:", err);
+  }
 }
 
 // ── New-note draft (survives accidental dismiss / reload) ─────────────────────
@@ -568,14 +623,21 @@ function bindEvents(user: User): void {
     el.addEventListener("click", () => applyFilter(el.dataset.filter as FilterType));
   });
 
-  function doSignOut(): void {
+  // Signing out also removes this account's offline copy of the notes from the
+  // device (shared computers). Edits that haven't synced yet only exist in that
+  // copy, so ask before deleting them.
+  async function doSignOut(): Promise<void> {
+    if (!(await pendingWritesSynced()) &&
+        !confirm("Some notes haven't synced yet. Signing out now deletes them from this device. Sign out anyway?")) return;
     clearDraft(); // shared computers: don't leave unsaved text behind
     teardownApp();
-    signOut(auth);
+    await signOut(auth);
+    await clearLocalNotes();
+    window.location.reload(); // the Firestore instance is terminated now; start fresh
   }
 
-  $("signout-btn").addEventListener("click", () => doSignOut());
-  $("mob-signout").addEventListener("click", () => { if (confirm("Sign out?")) doSignOut(); });
+  $("signout-btn").addEventListener("click", () => { void doSignOut(); });
+  $("mob-signout").addEventListener("click", () => { if (confirm("Sign out?")) void doSignOut(); });
 
   $("sort-btn").addEventListener("click", cycleSortOrder);
 
@@ -603,7 +665,11 @@ function bindEvents(user: User): void {
 
   // Explicit return target: Safari doesn't focus buttons on click.
   $("fab").addEventListener("click", () => openModal(undefined, saveFocus($("fab"), $("grid"), CARD_FOCUS)));
-  $("cancel-btn").addEventListener("click", () => { if (!editingId) clearDraft(); closeModal(); });
+  $("cancel-btn").addEventListener("click", () => {
+    if (editingId) { requestCloseModal(); return; }
+    clearDraft(); // explicit cancel of a new note discards its draft
+    closeModal();
+  });
   $("save-btn").addEventListener("click", () => saveNote(user));
 
   $<HTMLTextAreaElement>("nb").addEventListener("input", () => { updateWordCount(); saveDraft(); });
@@ -616,7 +682,7 @@ function bindEvents(user: User): void {
   $("ov").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveNote(user);
   });
-  $("ov").addEventListener("click", (e) => { if (e.target === $("ov")) closeModal(); });
+  $("ov").addEventListener("click", (e) => { if (e.target === $("ov")) requestCloseModal(); });
 
   $("view-close").addEventListener("click", () => closeView());
   $("ov-view").addEventListener("click", (e) => { if (e.target === $("ov-view")) closeView(); });
@@ -672,7 +738,7 @@ function bindEvents(user: User): void {
     const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
     if (e.key === "Escape") {
       if ($("ov-view")?.classList.contains("open")) { closeView(); return; }
-      if ($("ov")?.classList.contains("open"))      { closeModal(); return; }
+      if ($("ov")?.classList.contains("open"))      { requestCloseModal(); return; }
       const si = $<HTMLInputElement>("search-input");
       if (si && document.activeElement === si && si.value) { clearSearch(); return; }
     }
