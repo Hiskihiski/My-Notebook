@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "icons.svg"],
+      includeAssets: ["favicon.svg"],
       manifest: {
         name: "Notebook",
         short_name: "Notebook",
@@ -17,6 +17,9 @@ export default defineConfig({
           { src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
       },
+      // Register the service worker with a deferred script instead of a
+      // parser-blocking one in <head>.
+      injectRegister: "script-defer",
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png}"],
         // 404.html: served with status 404, which would fail the whole
