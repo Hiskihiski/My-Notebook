@@ -8,10 +8,11 @@ const FEATURES = [
 // No Firebase here: first-time visitors see this page before anything loads
 // it. `onGetStarted` starts Firebase (main.ts) or, once running, shows login.
 export function renderLanding(root: HTMLElement, onGetStarted: () => void): void {
+  document.title = "Notebook";
   root.innerHTML = `
     <div class="landing">
       <main class="landing-inner">
-        <div class="landing-mark">📓</div>
+        <div class="landing-mark" aria-hidden="true">📓</div>
         <h1 class="landing-title">Notebook</h1>
         <p class="landing-tagline">
           A calm, focused place for your thoughts — markdown notes with tags,
@@ -22,9 +23,9 @@ export function renderLanding(root: HTMLElement, onGetStarted: () => void): void
         <ul class="landing-features">
           ${FEATURES.map((f) => `
             <li class="landing-feature">
-              <span class="landing-feature-icon">${f.icon}</span>
+              <span class="landing-feature-icon" aria-hidden="true">${f.icon}</span>
               <div>
-                <h3>${f.title}</h3>
+                <h2>${f.title}</h2>
                 <p>${f.desc}</p>
               </div>
             </li>
