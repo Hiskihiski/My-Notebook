@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   shouldBootFirebase, isEmailSignInLink, setFlag, hasPersistedAuthUser,
-  SIGNED_IN_KEY, PENDING_REDIRECT_KEY,
+  SIGNED_IN_KEY, PENDING_REDIRECT_KEY, SIGNED_OUT_KEY, SIGN_OUT_AT_KEY, firstScreen, recentSignOut,
 } from "./boot";
 
 const store = (items: Record<string, string> = {}) => () => ({
@@ -202,3 +202,25 @@ describe("entry chunk", () => {
   });
 });
 
+
+describe("sign-out and redirect start screens", () => {
+  it("boots straight into the login screen after a sign-out or during a redirect sign-in", () => {
+    expect(shouldBootFirebase("", store(), store({ [SIGNED_OUT_KEY]: "1" }))).toBe(true);
+    expect(firstScreen(store({ [SIGNED_OUT_KEY]: "1" }))).toBe("login");
+    expect(firstScreen(store({ [PENDING_REDIRECT_KEY]: "1" }))).toBe("login");
+    expect(firstScreen(store())).toBe("landing");
+    expect(firstScreen(blocked)).toBe("landing");
+  });
+});
+
+describe("recentSignOut", () => {
+  const NOW = 1_800_000_000_000;
+  it("is true only for a Sign out within the last minute", () => {
+    expect(recentSignOut(store({ [SIGN_OUT_AT_KEY]: String(NOW - 5_000) }), NOW)).toBe(true);
+    expect(recentSignOut(store({ [SIGN_OUT_AT_KEY]: String(NOW - 61_000) }), NOW)).toBe(false);
+    expect(recentSignOut(store({ [SIGN_OUT_AT_KEY]: String(NOW + 5_000) }), NOW)).toBe(false);
+    expect(recentSignOut(store({ [SIGN_OUT_AT_KEY]: "x" }), NOW)).toBe(false);
+    expect(recentSignOut(store(), NOW)).toBe(false);
+    expect(recentSignOut(blocked, NOW)).toBe(false);
+  });
+});
