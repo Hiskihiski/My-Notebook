@@ -530,6 +530,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 
 /* ── Print: only the open note (or the note list), no app chrome ── */
 @media print{
+  /* Paper is white in both themes: print with the light theme's ink. */
+  html[data-theme]{--bg:#fff;--surface:#fff;--surface-2:#fff;--surface-3:#f2f2f0;--border:#ddd;--border-2:#ddd;--text:#333;--text-s:#000;--text-m:#555;--text-f:#555;--tp:#36508a;--pin:#6b4c18}
   html,body,#app,.app,.main{height:auto;overflow:visible;background:#fff}
   #theme-toggle,.toast,.sidebar,.topbar,.fab,.mnav,.card-actions,.grid-foot,.view-actions,#view-close{display:none}
   .grid{overflow:visible;padding:0;background:none}
