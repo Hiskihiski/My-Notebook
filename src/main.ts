@@ -1,7 +1,9 @@
 import "./style.css";
 import { $, initTheme } from "./ui";
 import { renderLanding } from "./landing";
-import { shouldBootFirebase, hasPersistedAuthUser, type SignedOutScreen } from "./boot";
+import {
+  shouldBootFirebase, hasPersistedAuthUser, firstScreen, setFlag, SIGNED_OUT_KEY, type SignedOutScreen,
+} from "./boot";
 
 // Same spinner as #app-loading in index.html, but on the active theme's
 // background (index.html's only follows the OS colour scheme).
@@ -46,7 +48,9 @@ async function startApp(): Promise<void> {
   // up). The IndexedDB check finds sessions from before the signedIn flag.
   if (shouldBootFirebase(window.location.search, () => localStorage, () => sessionStorage)
       || await hasPersistedAuthUser(import.meta.env.VITE_FIREBASE_API_KEY)) {
-    await bootFirebase(root, "landing");
+    const screen = firstScreen(() => sessionStorage);
+    setFlag(() => sessionStorage, SIGNED_OUT_KEY, false); // one reload only
+    await bootFirebase(root, screen);
     return;
   }
 

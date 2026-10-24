@@ -7,6 +7,22 @@
 export const SIGNED_IN_KEY = "signedIn";
 // sessionStorage: "1" from signInWithRedirect until getRedirectResult settles.
 export const PENDING_REDIRECT_KEY = "pendingGoogleRedirect";
+// sessionStorage: "1" from a sign-out until the page has reloaded (session.ts
+// clears the offline notes, then reloads straight into the login screen).
+export const SIGNED_OUT_KEY = "justSignedOut";
+// localStorage: time of a sign-out the user started with the Sign out button.
+// Other tabs see the same sign-out a moment later; a recent value tells them
+// the user chose to remove the offline notes (see session.ts).
+export const SIGN_OUT_AT_KEY = "signOutAt";
+const SIGN_OUT_WINDOW_MS = 60_000;
+
+// True if a Sign out button was used in any tab within the last minute.
+export function recentSignOut(local: StorageGetter, now: number): boolean {
+  try {
+    const at = Number(local().getItem(SIGN_OUT_AT_KEY));
+    return at > 0 && at <= now && now - at <= SIGN_OUT_WINDOW_MS;
+  } catch { return false; } // site data blocked
+}
 
 // Screen shown when the first auth state is "signed out".
 export type SignedOutScreen = "landing" | "login";
@@ -54,7 +70,14 @@ export function isEmailSignInLink(search: string, depth = 0): boolean {
 export function shouldBootFirebase(search: string, local: StorageGetter, session: StorageGetter): boolean {
   return hasFlag(local, SIGNED_IN_KEY)
     || isEmailSignInLink(search)
-    || hasFlag(session, PENDING_REDIRECT_KEY);
+    || hasFlag(session, PENDING_REDIRECT_KEY)
+    || hasFlag(session, SIGNED_OUT_KEY);
+}
+
+// Signed-out screen to start on: the login screen when the visitor is in the
+// middle of signing in or out (its errors show there), else the landing page.
+export function firstScreen(session: StorageGetter): SignedOutScreen {
+  return hasFlag(session, PENDING_REDIRECT_KEY) || hasFlag(session, SIGNED_OUT_KEY) ? "login" : "landing";
 }
 
 // Firebase Auth's own IndexedDB persistence (names from the SDK).

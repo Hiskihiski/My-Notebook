@@ -7,7 +7,10 @@ import { renderLanding } from "./landing";
 import { renderLogin } from "./login";
 import { EMAIL_FOR_SIGN_IN_KEY, parseSignInEmail } from "./email-link";
 import { renderApp, teardownApp } from "./app";
-import { SIGNED_IN_KEY, PENDING_REDIRECT_KEY, setFlag, type SignedOutScreen } from "./boot";
+import {
+  SIGNED_IN_KEY, PENDING_REDIRECT_KEY, SIGNED_OUT_KEY, SIGN_OUT_AT_KEY, setFlag, recentSignOut, type SignedOutScreen,
+} from "./boot";
+import { clearOfflineNotes } from "./offline-cache";
 
 // Only ever loaded via import() from main.ts, so it gets its own chunk:
 // importing it starts Firebase (App Check first, see firebase.ts).
@@ -50,6 +53,22 @@ async function completeEmailLinkSignIn(): Promise<void> {
   }
 }
 
+// Signed out after having been signed in on this page. If the user chose to
+// sign out (Sign out button in this or another tab, within the last minute),
+// remove this account's offline copy of the notes from the device. A session
+// that ended otherwise (revoked elsewhere) keeps it: once Auth has switched
+// users, Firestore can no longer tell whether edits are still unsynced, and
+// they would be lost. Then reload into the login screen.
+async function leaveSession(root: HTMLElement): Promise<void> {
+  root.innerHTML = `<div id="app-loading" style="background:var(--bg)"><span></span></div>`;
+  if (recentSignOut(() => localStorage, Date.now()) && await clearOfflineNotes()) {
+    try { localStorage.removeItem(SIGN_OUT_AT_KEY); }
+    catch { console.warn("Sign-out marker not removed: site data is blocked"); }
+  }
+  setFlag(() => sessionStorage, SIGNED_OUT_KEY, true);
+  window.location.reload();
+}
+
 let started = false;
 
 // Routes auth state to the screens. While signed out, the first render shows
@@ -74,8 +93,11 @@ export function startSession(root: HTMLElement, firstSignedOutScreen: SignedOutS
     })
     .finally(() => setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, false));
 
+  let signedInHere = false;
   onAuthStateChanged(auth, (user) => {
     teardownApp();
+    const wasSignedIn = signedInHere;
+    signedInHere = user !== null;
     // Lets main.ts start Firebase right away on the next visit (and not at all
     // once signed out).
     setFlag(() => localStorage, SIGNED_IN_KEY, user !== null);
@@ -84,6 +106,10 @@ export function startSession(root: HTMLElement, firstSignedOutScreen: SignedOutS
     if (user || rememberedEmail() === null) forgetEmail();
     const firstLoad = isFirstAuthLoad;
     isFirstAuthLoad = false;
+    if (!user && wasSignedIn) {
+      void leaveSession(root);
+      return;
+    }
     if (user) {
       renderApp(root, user);
     } else if (firstLoad) {

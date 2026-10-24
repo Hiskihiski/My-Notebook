@@ -1,7 +1,6 @@
 import {
   collection, query, where, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
-  terminate, clearIndexedDbPersistence, waitForPendingWrites,
 } from "firebase/firestore";
 import { signOut, type User } from "firebase/auth";
 import { auth, db } from "./firebase";
@@ -14,6 +13,8 @@ import {
 } from "./ui";
 import { renderMd, previewMd, markdownText } from "./markdown";
 import { parseDraft, isDraftChanged } from "./draft";
+import { pendingWritesSynced } from "./offline-cache";
+import { SIGN_OUT_AT_KEY } from "./boot";
 import { saveFocus, restoreFocus, tabbables, trapTarget, type ListFocusConfig, type SavedFocus } from "./focus";
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -468,38 +469,6 @@ function deleteNote(id: string): void {
   });
 }
 
-// ── Sign-out cleanup ─────────────────────────────────────────────────────────
-// True once every write has reached the server; false if some are still
-// pending after a few seconds (typically offline).
-function pendingWritesSynced(): Promise<boolean> {
-  return Promise.race([
-    waitForPendingWrites(db).then(() => true, () => false),
-    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
-  ]);
-}
-
-// Deletes Firestore's offline cache (IndexedDB) and its multi-tab bookkeeping
-// in localStorage. Fails while another tab still uses the cache; that tab
-// clears it when it signs out.
-async function clearLocalNotes(): Promise<void> {
-  try {
-    await terminate(db);
-    await clearIndexedDbPersistence(db);
-  } catch (err: unknown) {
-    console.warn("Offline notes cache not cleared:", err);
-  }
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith("firestore_")) keys.push(k);
-    }
-    keys.forEach((k) => localStorage.removeItem(k));
-  } catch (err: unknown) {
-    console.warn("Firestore tab state not cleared:", err);
-  }
-}
-
 // ── New-note draft (survives accidental dismiss / reload) ─────────────────────
 // Stored per user under `${DRAFT_KEY}:${uid}` (see renderApp).
 const DRAFT_KEY = "noteDraft";
@@ -626,14 +595,27 @@ function bindEvents(user: User): void {
   // Signing out also removes this account's offline copy of the notes from the
   // device (shared computers). Edits that haven't synced yet only exist in that
   // copy, so ask before deleting them.
+  // session.ts then removes the offline copy (in every tab) and reloads into
+  // the login screen.
+  let signingOut = false;
   async function doSignOut(): Promise<void> {
-    if (!(await pendingWritesSynced()) &&
-        !confirm("Some notes haven't synced yet. Signing out now deletes them from this device. Sign out anyway?")) return;
-    clearDraft(); // shared computers: don't leave unsaved text behind
-    teardownApp();
-    await signOut(auth);
-    await clearLocalNotes();
-    window.location.reload(); // the Firestore instance is terminated now; start fresh
+    if (signingOut) return; // waiting for pending writes can take a few seconds
+    signingOut = true;
+    try {
+      if (!(await pendingWritesSynced()) &&
+          !confirm("Some notes haven't synced yet. Signing out now deletes them from this device. Sign out anyway?")) return;
+      clearDraft(); // shared computers: don't leave unsaved text behind
+      // Tells session.ts in every tab to remove the offline notes (the user
+      // just confirmed losing unsynced edits, if there were any).
+      try { localStorage.setItem(SIGN_OUT_AT_KEY, String(Date.now())); }
+      catch { console.warn("Sign-out marker not saved: site data is blocked"); }
+      await signOut(auth);
+    } catch (err: unknown) {
+      console.error("Sign-out failed:", err);
+      showToast("Couldn't sign out — try again");
+    } finally {
+      signingOut = false;
+    }
   }
 
   $("signout-btn").addEventListener("click", () => { void doSignOut(); });
