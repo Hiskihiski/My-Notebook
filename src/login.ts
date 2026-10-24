@@ -32,19 +32,27 @@ function bfFail(email: string): boolean {
 function bfReset(email: string): void { bfMap.delete(email); }
 function bfCount(email: string): number { return bfMap.get(email)?.count ?? 0; }
 
+// Button labels that are restored after a busy state; arrows and emoji are
+// decoration, so screen readers only get the words. One wrapping span keeps
+// the label a single flex item (.g-btn has a gap), the space sits inside the
+// hidden part so it doesn't end up in the name.
+const SIGN_IN_LABEL   = `<span>Sign in<span aria-hidden="true"> &#x2192;</span></span>`;
+const SEND_LINK_LABEL = `<span><span aria-hidden="true">&#x2709;&#xFE0F; </span>Email me a sign-in link</span>`;
+
 // ── Login screen ──────────────────────────────────────────────────────────────
 export function renderLogin(root: HTMLElement): void {
+  document.title = "Sign in – Notebook";
   root.innerHTML = `
-    <div class="login-wrap">
+    <main class="login-wrap">
       <div class="login-box">
-        <div class="login-icon">&#x1F4D3;</div>
+        <div class="login-icon" aria-hidden="true">&#x1F4D3;</div>
         <h1 tabindex="-1">Notebook</h1>
         <p>Sign in or create an account</p>
-        <div class="login-err" id="login-err"></div>
+        <div class="login-err" id="login-err" role="alert"></div>
 
         <div id="step-email">
           <button class="g-btn email-btn" id="google-signin">
-            <svg width="17" height="17" viewBox="0 0 48 48">
+            <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
               <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
               <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -53,34 +61,35 @@ export function renderLogin(root: HTMLElement): void {
             Continue with Google
           </button>
           <div class="or-row"><span>or</span></div>
-          <input class="email-input" type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
-          <button class="g-btn email-btn" id="continue-btn">Continue &#x2192;</button>
+          <input class="email-input" type="email" id="email-input" placeholder="your@email.com" autocomplete="email" aria-label="Email address">
+          <button class="g-btn email-btn" id="continue-btn"><span>Continue<span aria-hidden="true"> &#x2192;</span></span></button>
         </div>
 
         <div id="step-password" style="display:none">
           <div class="email-badge" id="badge-password"></div>
-          <input class="email-input" type="password" id="pw-input" placeholder="Password" autocomplete="current-password">
+          <input class="email-input" type="password" id="pw-input" placeholder="Password" autocomplete="current-password" aria-label="Password">
           <div class="attempt-dots">
+            <span class="sr-only" id="attempts-left"></span>
             <span class="attempt-dot" id="dot-1"></span>
             <span class="attempt-dot" id="dot-2"></span>
             <span class="attempt-dot" id="dot-3"></span>
           </div>
           <div class="lockout-msg" id="lockout-msg" style="display:none"></div>
-          <button class="g-btn email-btn" id="signin-btn">Sign in &#x2192;</button>
+          <button class="g-btn email-btn" id="signin-btn">${SIGN_IN_LABEL}</button>
           <div class="or-row"><span>or</span></div>
-          <button class="g-btn email-btn" id="send-link-btn">&#x2709;&#xFE0F; Email me a sign-in link</button>
+          <button class="g-btn email-btn" id="send-link-btn">${SEND_LINK_LABEL}</button>
           <p class="otp-hint" style="margin:10px 0 0">New here? The sign-in link creates<br>your account automatically.</p>
-          <button class="back-link" id="back-from-password">&#x2190; Use a different email</button>
+          <button class="back-link" id="back-from-password"><span aria-hidden="true">&#x2190; </span>Use a different email</button>
         </div>
 
         <div id="step-link-sent" style="display:none">
-          <div class="link-sent-icon">&#x2709;&#xFE0F;</div>
+          <div class="link-sent-icon" aria-hidden="true">&#x2709;&#xFE0F;</div>
           <div class="email-badge" id="badge-link-sent"></div>
           <p class="otp-hint" id="link-sent-msg" tabindex="-1">We sent a sign-in link to your email.<br>
              Open it on this device to finish signing in.<br>
              Check your spam folder too.</p>
           <button class="back-link" id="resend-link" style="margin-top:8px">Resend link</button>
-          <button class="back-link" id="back-from-link-sent">&#x2190; Use a different email</button>
+          <button class="back-link" id="back-from-link-sent"><span aria-hidden="true">&#x2190; </span>Use a different email</button>
         </div>
 
         <p class="recaptcha-note">This site is protected by reCAPTCHA and the Google
@@ -89,12 +98,26 @@ export function renderLogin(root: HTMLElement): void {
         <p class="legal-links">Signing in creates an account for your notes.<br>
           How we handle your data: <a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a></p>
       </div>
-    </div>
+    </main>
   `;
 
+  // #login-err is a role=alert region that is always rendered (empty = no
+  // space, see style.css), so setting its text is announced. A field the
+  // message is about is marked invalid and described by it.
   const errEl = $("login-err");
-  function showErr(msg: string): void { errEl.textContent = msg; errEl.style.display = "block"; }
-  function hideErr(): void { errEl.style.display = "none"; }
+  const FIELDS = ["email-input", "pw-input"] as const;
+  function showErr(msg: string, field?: (typeof FIELDS)[number]): void {
+    errEl.textContent = msg;
+    if (!field) return;
+    const el = $(field);
+    el.setAttribute("aria-invalid", "true");
+    el.setAttribute("aria-describedby", "login-err");
+  }
+  function hideErr(): void {
+    errEl.textContent = "";
+    // Also runs after awaits, when this screen may already be gone.
+    for (const id of FIELDS) { $(id)?.removeAttribute("aria-invalid"); $(id)?.removeAttribute("aria-describedby"); }
+  }
 
   let currentEmail = "";
 
@@ -140,7 +163,7 @@ export function renderLogin(root: HTMLElement): void {
     const emailEl = $<HTMLInputElement>("email-input");
     const email   = emailEl.value.trim();
     hideErr();
-    if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr("Enter a valid email address."); emailEl.focus(); return; }
+    if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr("Enter a valid email address.", "email-input"); emailEl.focus(); return; }
     currentEmail = email;
     $<HTMLElement>("badge-password").textContent = email;
     updateDots(email);
@@ -155,6 +178,8 @@ export function renderLogin(root: HTMLElement): void {
   function updateDots(email: string): void {
     const count = bfCount(email);
     for (let i = 1; i <= 3; i++) $(`dot-${i}`).classList.toggle("used", i <= count);
+    // The dots only show this by colour.
+    $("attempts-left").textContent = `${3 - count} of 3 password attempts left`;
     const secs = bfSecondsLeft(email);
     const lockEl = $("lockout-msg");
     if (secs > 0) { lockEl.style.display = ""; lockEl.textContent = `Too many attempts. Try again in ${secs}s.`; }
@@ -168,7 +193,7 @@ export function renderLogin(root: HTMLElement): void {
     hideErr();
     if (bfSecondsLeft(email) > 0) { showErr(`Locked out. Try again in ${bfSecondsLeft(email)}s.`); return; }
     const pw = pwEl.value;
-    if (!pw) { showErr("Enter your password."); pwEl.focus(); return; }
+    if (!pw) { showErr("Enter your password.", "pw-input"); pwEl.focus(); return; }
     btn.disabled = true; btn.textContent = "Signing in…";
     try {
       await signInWithEmailAndPassword(auth, email, pw);
@@ -186,12 +211,12 @@ export function renderLogin(root: HTMLElement): void {
           }, 1000);
           showErr("Too many failed attempts. Locked for 1 minute.");
         } else {
-          showErr("Wrong password — or this account has no password. You can use the sign-in link instead.");
+          showErr("Wrong password — or this account has no password. You can use the sign-in link instead.", "pw-input");
         }
       } else {
         showErr(`Sign-in failed: ${(err as Error).message ?? code}`);
       }
-      btn.disabled = false; btn.textContent = "Sign in →";
+      btn.disabled = false; btn.innerHTML = SIGN_IN_LABEL;
     }
   });
 
@@ -232,7 +257,7 @@ export function renderLogin(root: HTMLElement): void {
     } catch (err: unknown) {
       showErr(linkErrorMessage((err as { code?: string }).code ?? "", (err as Error).message));
     } finally {
-      btn.disabled = false; btn.innerHTML = "&#x2709;&#xFE0F; Email me a sign-in link";
+      btn.disabled = false; btn.innerHTML = SEND_LINK_LABEL;
     }
   });
 

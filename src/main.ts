@@ -9,14 +9,14 @@ const LOADING_HTML = `<div id="app-loading" style="background:var(--bg)"><span><
 
 function renderLoadError(root: HTMLElement): void {
   root.innerHTML = `
-    <div class="login-wrap" id="load-error">
+    <main class="login-wrap" id="load-error">
       <div class="login-box">
-        <div class="login-icon">&#x1F4D3;</div>
+        <div class="login-icon" aria-hidden="true">&#x1F4D3;</div>
         <h1>Notebook</h1>
-        <div class="login-err" role="alert" style="display:block">Couldn't load Notebook. Check your connection and try again.</div>
+        <div class="login-err" role="alert">Couldn't load Notebook. Check your connection and try again.</div>
         <button class="g-btn email-btn" id="load-retry">Try again</button>
       </div>
-    </div>
+    </main>
   `;
   // A reload also picks up a new deploy if the old chunk is gone.
   $<HTMLButtonElement>("load-retry").addEventListener("click", () => window.location.reload());
