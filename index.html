@@ -37,6 +37,7 @@
       @media(prefers-color-scheme:dark){#app-loading{background:#0d0d10}}
       #app-loading span{width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(128,128,128,.25);border-top-color:rgba(128,128,128,.75);animation:app-spin .7s linear infinite}
       @keyframes app-spin{to{transform:rotate(360deg)}}
+      @media(prefers-reduced-motion:reduce){#app-loading span{animation-duration:1.5s}}
     </style>
   </head>
   <body>
