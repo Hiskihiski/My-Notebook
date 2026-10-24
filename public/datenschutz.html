@@ -51,9 +51,10 @@
         <li><strong><code>theme</code></strong>: Ihre Wahl zwischen hellem und dunklem Design (nur nach Klick auf den Umschalter).</li>
         <li><strong><code>signedIn</code></strong>: Hinweis „auf diesem Gerät angemeldet“, damit die App beim nächsten Öffnen direkt Ihre Notizen lädt. Wird beim Abmelden gelöscht.</li>
         <li><strong>Anmeldesitzung</strong> (IndexedDB <code>firebaseLocalStorageDb</code>): hält Sie angemeldet, bis Sie sich abmelden.</li>
-        <li><strong>Offline-Kopie Ihrer Notizen</strong> (IndexedDB/localStorage von Firestore): damit Notizen offline lesbar und änderbar sind.</li>
+        <li><strong>Offline-Kopie Ihrer Notizen</strong> (IndexedDB/localStorage von Firestore): damit Notizen offline lesbar und änderbar sind. Wird gelöscht, wenn Sie sich über „Sign out“ abmelden.</li>
         <li><strong>App-Check-Token</strong> und <strong>SDK-Versionsinformation</strong> (IndexedDB von Firebase): für den Missbrauchsschutz bzw. die technische Kompatibilität des Firebase-SDK.</li>
         <li><strong><code>noteDraft:…</code></strong>: ein noch nicht gespeicherter Entwurf einer neuen Notiz, damit beim Neuladen nichts verloren geht. Wird beim Speichern und Abmelden gelöscht.</li>
+        <li><strong><code>signOutAt</code></strong> und <strong><code>justSignedOut</code></strong>: kurzzeitige Hinweise beim Abmelden (Zeitpunkt bzw. „gerade abgemeldet“), damit alle geöffneten Tabs die Offline-Kopie Ihrer Notizen löschen und danach die Anmeldung angezeigt wird. Werden nach dem Aufräumen bzw. nach dem Neuladen gelöscht.</li>
         <li><strong><code>pendingGoogleRedirect</code></strong> (sessionStorage): nur während einer Anmeldung mit Google per Weiterleitung, damit die App die Rückkehr erkennt. Wird danach gelöscht.</li>
         <li><strong><code>emailForSignIn</code></strong>: Ihre E-Mail-Adresse, nachdem Sie einen Anmeldelink angefordert haben, damit Sie sie beim Öffnen des Links nicht erneut eingeben müssen. Wird nach der Anmeldung gelöscht.</li>
       </ul>
