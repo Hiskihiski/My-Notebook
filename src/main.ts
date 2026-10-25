@@ -1,5 +1,5 @@
 import "./style.css";
-import { $, initTheme } from "./ui";
+import { $, initTheme, logoMark } from "./ui";
 import { renderLanding } from "./landing";
 import { dropExpiredSignInEmail } from "./email-link";
 import {
@@ -14,7 +14,7 @@ function renderLoadError(root: HTMLElement): void {
   root.innerHTML = `
     <main class="login-wrap" id="load-error">
       <div class="login-box">
-        <div class="login-icon" aria-hidden="true">&#x1F4D3;</div>
+        <div class="login-icon" aria-hidden="true">${logoMark()}</div>
         <h1>Notebook</h1>
         <div class="login-err" role="alert">Couldn't load Notebook. Check your connection and try again.</div>
         <button class="g-btn email-btn" id="load-retry">Try again</button>

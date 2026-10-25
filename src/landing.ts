@@ -1,3 +1,5 @@
+import { logoMark } from "./ui"; // type-only imports there: no Firebase on the landing page
+
 const FEATURES = [
   { icon: "✎", title: "Markdown", desc: "Bold, italic, lists — lightweight formatting that stays out of your way." },
   { icon: "#", title: "Tags", desc: "Work, ideas, personal. One tap isolates exactly what you need." },
@@ -18,7 +20,7 @@ export function renderLanding(root: HTMLElement, onGetStarted: () => void): void
   root.innerHTML = `
     <div class="landing">
       <main class="landing-inner">
-        <div class="landing-mark" aria-hidden="true">📓</div>
+        <div class="landing-mark" aria-hidden="true">${logoMark()}</div>
         <h1 class="landing-title">Notebook</h1>
         <p class="landing-tagline">
           A calm, focused place for your thoughts — markdown notes with tags,
