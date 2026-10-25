@@ -1,4 +1,4 @@
-import type { Draft } from "./types";
+import { type Draft, toTag } from "./types";
 
 // Parses a stored new-note draft. localStorage can hold anything (corrupt
 // JSON, older formats, hand-edited values), so fall back to safe defaults.
@@ -10,7 +10,7 @@ export function parseDraft(raw: string | null): Draft | null {
     return {
       title:  d.title,
       body:   d.body,
-      tag:    d.tag === "ideas" || d.tag === "personal" ? d.tag : "work",
+      tag:    toTag(d.tag),
       pinned: d.pinned === true,
     };
   } catch { return null; }
