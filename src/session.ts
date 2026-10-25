@@ -4,7 +4,7 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { renderLanding } from "./landing";
-import { renderLogin } from "./login";
+import { renderLogin, showLoginError, clearLoginError } from "./login";
 import { EMAIL_FOR_SIGN_IN_KEY, parseSignInEmail } from "./email-link";
 import { renderApp, teardownApp } from "./app";
 import {
@@ -14,15 +14,6 @@ import { clearOfflineNotes } from "./offline-cache";
 
 // Only ever loaded via import() from main.ts, so it gets its own chunk:
 // importing it starts Firebase (App Check first, see firebase.ts).
-
-function showLoginError(msg: string): void {
-  const show = (): void => {
-    const el = document.getElementById("login-err");
-    if (el) { el.textContent = msg; el.style.display = "block"; }
-    else setTimeout(show, 100);
-  };
-  show();
-}
 
 // The address a sign-in link was sent to (null if none, expired or blocked).
 function rememberedEmail(): string | null {
@@ -39,14 +30,16 @@ async function completeEmailLinkSignIn(): Promise<void> {
   let email = rememberedEmail();
   if (!email) {
     // Link was opened on a different device/browser than the one that requested it.
-    email = window.prompt("Confirm your email to finish signing in:");
+    // Trimmed: mobile keyboards add a space after an autocompleted address.
+    email = window.prompt("Confirm your email to finish signing in:")?.trim() || null;
   }
   try {
     if (!email) throw new Error("Email confirmation cancelled.");
     await signInWithEmailLink(auth, email, window.location.href);
     forgetEmail();
   } catch (err: unknown) {
-    showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);
+    // Already signed in (an old link opened again): nothing to report.
+    if (!auth.currentUser) showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);
   } finally {
     // Strip the oobCode etc. from the address bar either way.
     window.history.replaceState(null, "", window.location.pathname);
@@ -89,7 +82,12 @@ export function startSession(root: HTMLElement, firstSignedOutScreen: SignedOutS
   getRedirectResult(auth)
     .catch((err: unknown) => {
       console.error("getRedirectResult:", err);
+      if (auth.currentUser) return;
       showLoginError("Sign-in was interrupted — please try again.");
+      // The user was mid sign-in: show the error on the login screen rather
+      // than behind the landing page's "Get started", like a failed email link.
+      if (isFirstAuthLoad) isFirstAuthLoad = false;
+      else if (root.querySelector(".landing")) renderLogin(root);
     })
     .finally(() => setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, false));
 
@@ -111,6 +109,7 @@ export function startSession(root: HTMLElement, firstSignedOutScreen: SignedOutS
       return;
     }
     if (user) {
+      clearLoginError();
       renderApp(root, user);
     } else if (firstLoad) {
       renderLanding(root, () => renderLogin(root));
