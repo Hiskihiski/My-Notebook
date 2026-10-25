@@ -67,6 +67,17 @@ afterEach(() => {
 });
 
 describe("note list", () => {
+  it("animates only notes it hasn't shown before", () => {
+    const animated = () => [...document.querySelectorAll<HTMLElement>(".card.card-in")].map((c) => c.dataset.id);
+    send(note({ id: "a" }), note({ id: "b" }));
+    expect(animated()).toEqual(["a", "b"]);
+    send(note({ id: "a" }), note({ id: "b" }), note({ id: "c", createdAt: ts(5000) }));
+    expect(animated()).toEqual(["c"]);
+    type("search-input", "milk");
+    vi.advanceTimersByTime(200);
+    expect(animated()).toEqual([]);
+  });
+
   it("shows the notes from the listener, pinned first, newest next", () => {
     send(note({ id: "old", createdAt: ts(1) }), note({ id: "new", createdAt: ts(3) }), note({ id: "pin", pinned: true, createdAt: ts(2) }));
     expect(cardIds()).toEqual(["pin", "new", "old"]);

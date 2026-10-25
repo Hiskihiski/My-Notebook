@@ -3,7 +3,7 @@ import {
   sendSignInLinkToEmail,
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
-import { $ } from "./ui";
+import { $, logoMark } from "./ui";
 import { bruteForceGuard } from "./bruteforce";
 import { PENDING_REDIRECT_KEY, setFlag } from "./boot";
 import {
@@ -49,7 +49,7 @@ export function renderLogin(root: HTMLElement): void {
   root.innerHTML = `
     <main class="login-wrap">
       <div class="login-box">
-        <div class="login-icon" aria-hidden="true">&#x1F4D3;</div>
+        <div class="login-icon" aria-hidden="true">${logoMark()}</div>
         <h1 tabindex="-1">Notebook</h1>
         <p>Sign in or create an account</p>
         <div class="login-err" id="login-err" role="alert"></div>

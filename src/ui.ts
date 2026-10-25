@@ -11,6 +11,17 @@ export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+// App logo, sized by its container. Colors come from the theme (.logo-* in
+// style.css); public/favicon.svg is the same mark with fixed colors.
+export function logoMark(): string {
+  return `<svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <rect class="logo-tile" width="32" height="32" rx="8"/>
+    <path class="logo-page" d="M9.5 8.5A1.5 1.5 0 0 1 11 7h10.5a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H11a1.5 1.5 0 0 1-1.5-1.5z"/>
+    <path class="logo-spine" d="M12.5 7v18" stroke-width="1.4"/>
+    <path class="logo-ribbon" d="M17.5 7v7l2-1.5 2 1.5V7z"/>
+  </svg>`;
+}
+
 export function fmtDate(ts: Timestamp | null | undefined): string {
   if (!ts || typeof ts.toMillis !== "function") return "Just now";
   const d = Date.now() - ts.toMillis();

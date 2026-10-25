@@ -10,7 +10,7 @@ import {
 } from "./types";
 import {
   $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast, mountToast, undoFromToast,
-  onBackdropClick,
+  onBackdropClick, logoMark,
 } from "./ui";
 import { renderMd, previewMd, markdownText } from "./markdown";
 import { parseDraft, isDraftChanged } from "./draft";
@@ -38,6 +38,8 @@ let loadState:       "loading" | "ready" | "failed"        = "loading";
 let dialogReturn:    SavedFocus | null                     = null; // focus target once the open dialog closes
 let focusTimer:      ReturnType<typeof setTimeout> | null  = null;
 let editOriginal:    Draft | null                          = null; // note as the edit dialog opened it
+// Note ids the grid has already shown; only unseen ones play the entrance animation.
+let seenIds                                                = new Set<string>();
 
 // Called on every auth change (including sign-out) so listeners and timers
 // from a previous session never leak into the next render.
@@ -52,6 +54,7 @@ export function teardownApp(): void {
   hideToast();
   viewId = null; editingId = null; draftKey = null; dialogReturn = null; loadState = "loading";
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
+  seenIds = new Set();
 }
 
 // Legal links and the reCAPTCHA attribution: App Check keeps running while
@@ -248,6 +251,13 @@ function renderCards(announce = false): void {
   if (loadState === "loading") return;
   if (loadState === "failed") { showLoadError(); return; }
 
+  // The grid is rebuilt on every search keystroke, filter, pin and snapshot,
+  // so only notes it hasn't shown before animate in, and only the first paint
+  // staggers. Notes hidden by a filter count as shown: revealing them later
+  // isn't new content. Undo re-adds under a new id, so a restored note animates.
+  const seenBefore = seenIds;
+  seenIds = new Set(notes.map((n) => n.id));
+
   // innerHTML below destroys a focused card control (pin, delete, a snapshot
   // arriving): put focus back on the same control, or a neighbour, not <body>.
   // Only keyboard focus scrolls; a mouse click keeps the grid where it is.
@@ -256,7 +266,7 @@ function renderCards(announce = false): void {
   const scroll = !!active?.matches(":focus-visible");
   // Search the markdown source and the text it renders to ("**bold**" and "bold").
   const list   = visibleNotes(notes, filter, searchQuery, sortOrder, searchText);
-  grid.innerHTML = cardsHtml(list);
+  grid.innerHTML = cardsHtml(list, seenBefore);
   if (saved) restoreFocus(grid, saved, CARD_FOCUS, $("fab"), { preventScroll: !scroll });
   if (announce) $("grid-status").textContent = resultStatus(list.length);
 }
@@ -266,13 +276,14 @@ function resultStatus(count: number): string {
   return searchQuery.trim() ? `Search: ${n} found` : `${FL[filter]}: ${n}`;
 }
 
-function cardsHtml(list: Note[]): string {
+// `seen`: note ids already shown before this render (see renderCards).
+function cardsHtml(list: Note[], seen: ReadonlySet<string>): string {
   if (!list.length) {
     const firstTime = notes.length === 0 && filter === "all" && !searchQuery.trim();
     return (firstTime
       ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
                      height:240px;gap:10px;grid-column:1/-1;text-align:center">
-           <span style="font-size:40px;opacity:.2" aria-hidden="true">&#x1F4D3;</span>
+           <span style="width:44px;height:44px;opacity:.2" aria-hidden="true">${logoMark()}</span>
            <div style="font-size:15px;font-weight:500;color:var(--text-s)">Your notebook is empty</div>
            <div style="font-size:12px;color:var(--text-m);line-height:1.6">
              Tap <strong style="color:var(--text-s)">+</strong> to write your first note
@@ -288,11 +299,14 @@ function cardsHtml(list: Note[]): string {
   // The whole card opens the note on click (grid delegation in bindEvents);
   // .card-open is its keyboard control (inside the card's heading), followed
   // by the card's actions, named after the note: "Delete note: Groceries".
+  const firstPaint = seen.size === 0;
   return list.map((n, i) => {
-    const id = esc(n.id);
-    const t  = esc(n.title || "Untitled");
+    const id    = esc(n.id);
+    const t     = esc(n.title || "Untitled");
+    const isNew = !seen.has(n.id);
+    const delay = isNew && firstPaint ? ` style="animation-delay:${Math.min(i, 8) * 45}ms"` : "";
     return `
-    <div class="card" data-id="${id}" style="animation-delay:${Math.min(i, 8) * 45}ms">
+    <div class="card${isNew ? " card-in" : ""}" data-id="${id}"${delay}>
       <h2 class="card-h"><button type="button" class="card-open" data-id="${id}"><span class="ctitle">${esc(n.title)}</span></button></h2>
       <div class="card-actions">
         <button class="card-btn card-pin${n.pinned ? " pinned" : ""}" data-id="${id}" title="${n.pinned ? "Unpin" : "Pin"}" aria-label="Pin note: ${t}" aria-pressed="${n.pinned}">${n.pinned ? "&#x2605;" : "&#x2606;"}</button>
