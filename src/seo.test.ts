@@ -22,6 +22,11 @@ describe("index.html SEO tags", () => {
     expect(meta('meta[name="twitter:card"]')).toBe("summary_large_image");
   });
 
+  it("links the favicon and the iOS home-screen icon", () => {
+    expect(doc.querySelector('link[rel="icon"]')?.getAttribute("href")).toBe("/favicon.svg");
+    expect(doc.querySelector('link[rel="apple-touch-icon"]')?.getAttribute("href")).toBe("/apple-touch-icon.png");
+  });
+
   it("has valid JSON-LD", () => {
     const ld = JSON.parse(doc.querySelector('script[type="application/ld+json"]')?.textContent ?? "");
     const types = ld["@graph"].map((n: { "@type": string }) => n["@type"]);
