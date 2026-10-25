@@ -1,6 +1,7 @@
 import "./style.css";
 import { $, initTheme } from "./ui";
 import { renderLanding } from "./landing";
+import { dropExpiredSignInEmail } from "./email-link";
 import {
   shouldBootFirebase, hasPersistedAuthUser, firstScreen, setFlag, SIGNED_OUT_KEY, type SignedOutScreen,
 } from "./boot";
@@ -42,6 +43,7 @@ async function startApp(): Promise<void> {
   if (!root) { setTimeout(() => void startApp(), 10); return; }
 
   initTheme();
+  dropExpiredSignInEmail(() => localStorage, Date.now());
 
   // Signed in last time, opening an emailed sign-in link or returning from the
   // Google redirect: start Firebase straight away (index.html's spinner stays

@@ -40,3 +40,14 @@ export function linkErrorMessage(code: string, message: string): string {
   }
   return `Could not send link: ${message || "unknown"}`;
 }
+
+// Removes a remembered address that can no longer complete a link sign-in.
+// Runs at every start (main.ts), so an address doesn't stay on the device
+// when the visitor never opens the link or signs in. Storage errors (site
+// data blocked) mean there is nothing to clean up.
+export function dropExpiredSignInEmail(store: () => Storage, now: number): void {
+  try {
+    const raw = store().getItem(EMAIL_FOR_SIGN_IN_KEY);
+    if (raw !== null && parseSignInEmail(raw, now) === null) store().removeItem(EMAIL_FOR_SIGN_IN_KEY);
+  } catch { console.warn("Sign-in email not checked: site data is blocked"); }
+}

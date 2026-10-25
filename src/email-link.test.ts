@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  serializeSignInEmail, parseSignInEmail, cooldownSeconds, linkErrorMessage,
+  serializeSignInEmail, parseSignInEmail, cooldownSeconds, linkErrorMessage, dropExpiredSignInEmail, EMAIL_FOR_SIGN_IN_KEY,
   EMAIL_MAX_AGE_MS, RESEND_COOLDOWN_MS,
 } from "./email-link";
 
@@ -48,5 +48,27 @@ describe("linkErrorMessage", () => {
   it("keeps other errors visible", () => {
     expect(linkErrorMessage("auth/network-request-failed", "Network error")).toBe("Could not send link: Network error");
     expect(linkErrorMessage("", "")).toBe("Could not send link: unknown");
+  });
+});
+
+describe("dropExpiredSignInEmail", () => {
+  const mem = (v: string | null) => {
+    const m = new Map<string, string>(v === null ? [] : [[EMAIL_FOR_SIGN_IN_KEY, v]]);
+    return { getItem: (k: string) => m.get(k) ?? null, removeItem: (k: string) => { m.delete(k); }, m } as unknown as Storage & { m: Map<string, string> };
+  };
+  it("removes expired, old-format and malformed entries but keeps a fresh one", () => {
+    const old = mem(serializeSignInEmail("a@b.co", NOW - EMAIL_MAX_AGE_MS - 1));
+    dropExpiredSignInEmail(() => old, NOW);
+    expect(old.m.has(EMAIL_FOR_SIGN_IN_KEY)).toBe(false);
+    const bare = mem("a@b.co");
+    dropExpiredSignInEmail(() => bare, NOW);
+    expect(bare.m.has(EMAIL_FOR_SIGN_IN_KEY)).toBe(false);
+    const fresh = mem(serializeSignInEmail("a@b.co", NOW - 1000));
+    dropExpiredSignInEmail(() => fresh, NOW);
+    expect(fresh.m.get(EMAIL_FOR_SIGN_IN_KEY)).toContain("a@b.co");
+  });
+
+  it("tolerates blocked storage", () => {
+    expect(() => dropExpiredSignInEmail(() => { throw new DOMException("blocked", "SecurityError"); }, NOW)).not.toThrow();
   });
 });
