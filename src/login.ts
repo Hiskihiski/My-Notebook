@@ -4,33 +4,36 @@ import {
 } from "firebase/auth";
 import { auth, gProvider } from "./firebase";
 import { $ } from "./ui";
+import { bruteForceGuard } from "./bruteforce";
 import { PENDING_REDIRECT_KEY, setFlag } from "./boot";
 import {
   EMAIL_FOR_SIGN_IN_KEY, serializeSignInEmail, cooldownSeconds, linkErrorMessage,
 } from "./email-link";
 
-
-// ── Brute-force guard (client-side UX only — Firebase enforces real limits) ──
-const bfMap = new Map<string, { count: number; lockedUntil: number }>();
+// Lockouts outlive the screen (back to the landing page and in again), the
+// countdown timer doesn't: there's at most one, for the address on screen.
+const bf = bruteForceGuard();
 let lockoutTimer: ReturnType<typeof setInterval> | null = null;
 
 // When each address (lower-cased) last got a sign-in link, for the cooldown.
 const linkSentAt = new Map<string, number>();
 
-function bfSecondsLeft(email: string): number {
-  const e = bfMap.get(email);
-  if (!e || e.lockedUntil <= Date.now()) return 0;
-  return Math.ceil((e.lockedUntil - Date.now()) / 1000);
+function stopLockoutTimer(): void {
+  if (lockoutTimer) { clearInterval(lockoutTimer); lockoutTimer = null; }
 }
-function bfFail(email: string): boolean {
-  const e = bfMap.get(email) ?? { count: 0, lockedUntil: 0 };
-  e.count++;
-  if (e.count >= 3) { e.lockedUntil = Date.now() + 60_000; e.count = 0; }
-  bfMap.set(email, e);
-  return e.lockedUntil > Date.now();
+
+// A failed email link or redirect can finish before the login screen is up;
+// its error then waits for the next renderLogin.
+let pendingError: string | null = null;
+
+export function showLoginError(msg: string): void {
+  const el = document.getElementById("login-err");
+  if (el) el.textContent = msg; // role=alert, hidden while empty (style.css)
+  else pendingError = msg;
 }
-function bfReset(email: string): void { bfMap.delete(email); }
-function bfCount(email: string): number { return bfMap.get(email)?.count ?? 0; }
+
+// Called on sign-in, so a stale error doesn't greet the user at sign-out.
+export function clearLoginError(): void { pendingError = null; }
 
 // Button labels that are restored after a busy state; arrows and emoji are
 // decoration, so screen readers only get the words. One wrapping span keeps
@@ -41,6 +44,7 @@ const SEND_LINK_LABEL = `<span><span aria-hidden="true">&#x2709;&#xFE0F; </span>
 
 // ── Login screen ──────────────────────────────────────────────────────────────
 export function renderLogin(root: HTMLElement): void {
+  stopLockoutTimer();
   document.title = "Sign in – Notebook";
   root.innerHTML = `
     <main class="login-wrap">
@@ -118,6 +122,7 @@ export function renderLogin(root: HTMLElement): void {
     // Also runs after awaits, when this screen may already be gone.
     for (const id of FIELDS) { $(id)?.removeAttribute("aria-invalid"); $(id)?.removeAttribute("aria-describedby"); }
   }
+  if (pendingError) { showErr(pendingError); pendingError = null; }
 
   let currentEmail = "";
 
@@ -135,6 +140,8 @@ export function renderLogin(root: HTMLElement): void {
   // ── Google ──────────────────────────────────────────────────────────────────
   $<HTMLButtonElement>("google-signin").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("google-signin");
+    const label = btn.innerHTML; // keeps the Google logo, which textContent would drop
+    const resetBtn = (): void => { btn.disabled = false; btn.innerHTML = label; };
     btn.disabled = true; btn.textContent = "Signing in…";
     hideErr();
     try {
@@ -147,13 +154,13 @@ export function renderLogin(root: HTMLElement): void {
         signInWithRedirect(auth, gProvider).catch((e: unknown) => {
           setFlag(() => sessionStorage, PENDING_REDIRECT_KEY, false); // no redirect happened
           showErr((e as Error).message ?? "Sign-in failed");
-          btn.disabled = false; btn.textContent = "Continue with Google";
+          resetBtn();
         });
       } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        btn.disabled = false; btn.textContent = "Continue with Google";
+        resetBtn();
       } else {
         showErr(`Sign-in failed: ${(err as Error).message ?? code}`);
-        btn.disabled = false; btn.textContent = "Continue with Google";
+        resetBtn();
       }
     }
   });
@@ -166,7 +173,7 @@ export function renderLogin(root: HTMLElement): void {
     if (!email || !/\S+@\S+\.\S+/.test(email)) { showErr("Enter a valid email address.", "email-input"); emailEl.focus(); return; }
     currentEmail = email;
     $<HTMLElement>("badge-password").textContent = email;
-    updateDots(email);
+    updateDots();
     showStep("password");
     $<HTMLInputElement>("pw-input").focus();
   });
@@ -175,15 +182,23 @@ export function renderLogin(root: HTMLElement): void {
     if (e.key === "Enter") $<HTMLButtonElement>("continue-btn").click();
   });
 
-  function updateDots(email: string): void {
-    const count = bfCount(email);
+  // Shows the attempts and lockout for the address on screen, and keeps the
+  // countdown ticking only while that address is locked and the screen is up.
+  function updateDots(): void {
+    const lockEl = $("lockout-msg");
+    if (!lockEl) { stopLockoutTimer(); return; } // login screen is gone
+    const secs  = bf.secondsLeft(currentEmail);
+    const count = secs > 0 ? 3 : bf.count(currentEmail); // the count restarts at lockout
     for (let i = 1; i <= 3; i++) $(`dot-${i}`).classList.toggle("used", i <= count);
     // The dots only show this by colour.
     $("attempts-left").textContent = `${3 - count} of 3 password attempts left`;
-    const secs = bfSecondsLeft(email);
-    const lockEl = $("lockout-msg");
-    if (secs > 0) { lockEl.style.display = ""; lockEl.textContent = `Too many attempts. Try again in ${secs}s.`; }
-    else lockEl.style.display = "none";
+    if (secs > 0) {
+      lockEl.style.display = ""; lockEl.textContent = `Too many attempts. Try again in ${secs}s.`;
+      lockoutTimer ??= setInterval(updateDots, 1000);
+    } else {
+      lockEl.style.display = "none";
+      stopLockoutTimer();
+    }
   }
 
   $<HTMLButtonElement>("signin-btn").addEventListener("click", async () => {
@@ -191,24 +206,20 @@ export function renderLogin(root: HTMLElement): void {
     const btn   = $<HTMLButtonElement>("signin-btn");
     const email = currentEmail;
     hideErr();
-    if (bfSecondsLeft(email) > 0) { showErr(`Locked out. Try again in ${bfSecondsLeft(email)}s.`); return; }
+    if (bf.secondsLeft(email) > 0) { showErr(`Locked out. Try again in ${bf.secondsLeft(email)}s.`); return; }
     const pw = pwEl.value;
     if (!pw) { showErr("Enter your password.", "pw-input"); pwEl.focus(); return; }
     btn.disabled = true; btn.textContent = "Signing in…";
     try {
       await signInWithEmailAndPassword(auth, email, pw);
-      bfReset(email);
-      if (lockoutTimer) { clearInterval(lockoutTimer); lockoutTimer = null; }
+      bf.reset(email);
+      stopLockoutTimer();
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/wrong-password" || code === "auth/invalid-credential" || code === "auth/user-not-found") {
-        const locked = bfFail(email);
-        updateDots(email);
+        const locked = bf.fail(email);
+        updateDots();
         if (locked) {
-          lockoutTimer = setInterval(() => {
-            updateDots(email);
-            if (bfSecondsLeft(email) <= 0) { clearInterval(lockoutTimer!); lockoutTimer = null; }
-          }, 1000);
           showErr("Too many failed attempts. Locked for 1 minute.");
         } else {
           showErr("Wrong password — or this account has no password. You can use the sign-in link instead.", "pw-input");
@@ -265,14 +276,15 @@ export function renderLogin(root: HTMLElement): void {
     const btn = $<HTMLButtonElement>("resend-link");
     hideErr();
     if (!linkAllowed(currentEmail)) return;
-    btn.textContent = "Sending…";
+    // Disabled until "Sent!" clears, so a double-click doesn't send two emails.
+    btn.disabled = true; btn.textContent = "Sending…";
     try {
       await doSendLink(currentEmail);
       btn.textContent = "Sent!";
-      setTimeout(() => { btn.textContent = "Resend link"; }, 2500);
+      setTimeout(() => { btn.textContent = "Resend link"; btn.disabled = false; }, 2500);
     } catch (err: unknown) {
       showErr(linkErrorMessage((err as { code?: string }).code ?? "", (err as Error).message));
-      btn.textContent = "Resend link";
+      btn.textContent = "Resend link"; btn.disabled = false;
     }
   });
 

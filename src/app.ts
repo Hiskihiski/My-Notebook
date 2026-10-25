@@ -6,13 +6,18 @@ import { signOut, type User } from "firebase/auth";
 import { auth, db } from "./firebase";
 import {
   type Note, type Tag, type FilterType, type SortOrder, type Draft,
-  TC, TL, FL, SORT_LABELS, QUOTES,
+  TL, FL, SORT_LABELS, QUOTES, toTag, tagClass, tagLabel,
 } from "./types";
 import {
   $, esc, fmtDate, fmtCardDate, initials, firstName, showToast, hideToast, mountToast, undoFromToast,
+  onBackdropClick,
 } from "./ui";
 import { renderMd, previewMd, markdownText } from "./markdown";
 import { parseDraft, isDraftChanged } from "./draft";
+import { store } from "./storage";
+import {
+  TITLE_MAX, BODY_MAX, clip, noteFromSnapshot, restoreData, tidyBody, visibleNotes,
+} from "./notes";
 import { pendingWritesSynced } from "./offline-cache";
 import { SIGN_OUT_AT_KEY } from "./boot";
 import { saveFocus, restoreFocus, tabbables, trapTarget, type ListFocusConfig, type SavedFocus } from "./focus";
@@ -29,6 +34,7 @@ let searchDebounce:  ReturnType<typeof setTimeout> | null  = null;
 let quoteTimer:      ReturnType<typeof setInterval> | null = null;
 let keyboardHandler: ((e: KeyboardEvent) => void) | null   = null;
 let draftKey:        string | null                         = null;
+let loadState:       "loading" | "ready" | "failed"        = "loading";
 let dialogReturn:    SavedFocus | null                     = null; // focus target once the open dialog closes
 let focusTimer:      ReturnType<typeof setTimeout> | null  = null;
 let editOriginal:    Draft | null                          = null; // note as the edit dialog opened it
@@ -39,11 +45,12 @@ export function teardownApp(): void {
   unsubNotes?.(); unsubNotes = null;
   editOriginal = null;
   if (quoteTimer) { clearInterval(quoteTimer); quoteTimer = null; }
+  if (searchDebounce) { clearTimeout(searchDebounce); searchDebounce = null; }
   document.body.classList.remove("dialog-open");
   if (focusTimer) { clearTimeout(focusTimer); focusTimer = null; }
   if (keyboardHandler) { document.removeEventListener("keydown", keyboardHandler); keyboardHandler = null; }
   hideToast();
-  viewId = null; editingId = null; draftKey = null; dialogReturn = null;
+  viewId = null; editingId = null; draftKey = null; dialogReturn = null; loadState = "loading";
   notes = []; filter = "all"; searchQuery = ""; sortOrder = "newest";
 }
 
@@ -76,7 +83,7 @@ export function renderApp(root: HTMLElement, user: User): void {
   // Drafts are per user so the next person signing in on this browser never
   // sees them. The old shared key can't be attributed to anyone, so drop it.
   draftKey = `${DRAFT_KEY}:${user.uid}`;
-  localStorage.removeItem(DRAFT_KEY);
+  store.remove(DRAFT_KEY);
 
   // Coming from the login (or landing) screen, the focused control is about
   // to disappear; on a plain page load there is nothing to carry over.
@@ -159,8 +166,8 @@ export function renderApp(root: HTMLElement, user: User): void {
           <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <h2 id="modal-title">New note</h2>
             <div class="err-msg" id="err-msg" role="alert"></div>
-            <input  type="text" id="nt" placeholder="Title" maxlength="200" aria-label="Title">
-            <textarea           id="nb" placeholder="Write something&#x2026;" maxlength="20000" aria-label="Note text"></textarea>
+            <input  type="text" id="nt" placeholder="Title" maxlength="${TITLE_MAX}" aria-label="Title">
+            <textarea           id="nb" placeholder="Write something&#x2026;" maxlength="${BODY_MAX}" aria-label="Note text"></textarea>
             <div class="wcount" id="wcount"></div>
             <select             id="ntag" aria-label="Tag">
               <option value="work">Work</option>
@@ -236,6 +243,10 @@ function searchText(n: Note): string {
 function renderCards(announce = false): void {
   const grid = $<HTMLDivElement>("grid");
   if (!grid) return;
+  // A filter/search/sort before the notes arrive (or after they failed to)
+  // mustn't swap the skeletons or the Retry button for "Your notebook is empty".
+  if (loadState === "loading") return;
+  if (loadState === "failed") { showLoadError(); return; }
 
   // innerHTML below destroys a focused card control (pin, delete, a snapshot
   // arriving): put focus back on the same control, or a neighbour, not <body>.
@@ -243,7 +254,8 @@ function renderCards(announce = false): void {
   const active = grid.contains(document.activeElement) ? document.activeElement : null;
   const saved  = saveFocus(active, grid, CARD_FOCUS);
   const scroll = !!active?.matches(":focus-visible");
-  const list   = visibleNotes();
+  // Search the markdown source and the text it renders to ("**bold**" and "bold").
+  const list   = visibleNotes(notes, filter, searchQuery, sortOrder, searchText);
   grid.innerHTML = cardsHtml(list);
   if (saved) restoreFocus(grid, saved, CARD_FOCUS, $("fab"), { preventScroll: !scroll });
   if (announce) $("grid-status").textContent = resultStatus(list.length);
@@ -251,28 +263,12 @@ function renderCards(announce = false): void {
 
 function resultStatus(count: number): string {
   const n = count === 0 ? "no notes" : count === 1 ? "1 note" : `${count} notes`;
-  return searchQuery ? `Search: ${n} found` : `${FL[filter]}: ${n}`;
-}
-
-function visibleNotes(): Note[] {
-  const filtered = notes.filter((n) =>
-    (filter === "pinned" ? n.pinned : filter === "all" ? true : n.tag === filter) &&
-    // Search the markdown source and the text it renders to ("**bold**" and "bold").
-    (!searchQuery || searchText(n).includes(searchQuery))
-  );
-
-  // Pinned notes always float to top, then sort by chosen order
-  return [...filtered].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    if (sortOrder === "oldest") return (a.createdAt?.toMillis() ?? 0) - (b.createdAt?.toMillis() ?? 0);
-    if (sortOrder === "az")     return a.title.localeCompare(b.title);
-    return (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0);
-  });
+  return searchQuery.trim() ? `Search: ${n} found` : `${FL[filter]}: ${n}`;
 }
 
 function cardsHtml(list: Note[]): string {
   if (!list.length) {
-    const firstTime = notes.length === 0 && filter === "all" && !searchQuery;
+    const firstTime = notes.length === 0 && filter === "all" && !searchQuery.trim();
     return (firstTime
       ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
                      height:240px;gap:10px;grid-column:1/-1;text-align:center">
@@ -306,7 +302,7 @@ function cardsHtml(list: Note[]): string {
       <div class="cbody">${previewMd(n.body)}</div>
       <div class="cmeta">
         <span class="cdate">${fmtCardDate(n)}</span>
-        <span class="ctag ${TC[n.tag] ?? "tw"}">${TL[n.tag] ?? esc(String(n.tag))}</span>
+        <span class="ctag ${tagClass(n.tag)}">${esc(tagLabel(n.tag))}</span>
       </div>
     </div>
   `;
@@ -318,8 +314,8 @@ function fillView(n: Note): void {
   $("view-title").textContent = n.title || "Untitled";
   $("view-body").innerHTML    = renderMd(n.body || "");
   const tagEl = $("view-tag");
-  tagEl.className = `ctag ${TC[n.tag] ?? "tw"}`;
-  tagEl.textContent = TL[n.tag] ?? n.tag;
+  tagEl.className = `ctag ${tagClass(n.tag)}`;
+  tagEl.textContent = tagLabel(n.tag);
   $("view-pin-badge").classList.toggle("show", n.pinned);
   const pinBtn = $<HTMLButtonElement>("view-pin-btn");
   pinBtn.innerHTML = n.pinned ? `<span aria-hidden="true">&#x2605; </span>Pinned` : `<span aria-hidden="true">&#x2606; </span>Pin`;
@@ -405,7 +401,7 @@ function openModal(id?: string, returnTo?: SavedFocus | null): void {
   if (n) {
     $("modal-title").textContent = "Edit note";
     saveBtn.textContent          = "Save";
-    ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = n.tag; npinEl.checked = n.pinned;
+    ntEl.value = n.title; nbEl.value = n.body; ntagEl.value = toTag(n.tag); npinEl.checked = n.pinned;
     editOriginal = modalDraft();
   } else {
     $("modal-title").textContent = "New note";
@@ -426,6 +422,8 @@ function openModal(id?: string, returnTo?: SavedFocus | null): void {
   }, 210);
 }
 
+// The form's values; compared with editOriginal so a Save that changes nothing
+// skips the write and closing asks before discarding real edits.
 function modalDraft(): Draft {
   return {
     title:  $<HTMLInputElement>("nt").value,
@@ -467,17 +465,14 @@ function updateWordCount(): void {
 function deleteNote(id: string): void {
   const n = notes.find(x => x.id === id);
   if (!n) return;
-  const restore = {
-    uid: n.uid, title: n.title, body: n.body, tag: n.tag, pinned: n.pinned,
-    createdAt: n.createdAt ?? serverTimestamp(),
-    ...(n.updatedAt ? { updatedAt: n.updatedAt } : {}),
-  };
+  const restore = restoreData(n);
   // The cache (and the list) updates immediately, but the promise only settles
   // once the server confirms, which never happens offline, so don't wait on it.
   deleteDoc(doc(db, "notes", id))
     .catch((err) => { console.error(err); showToast("Couldn't delete — try again"); });
   showToast("Note deleted", () => {
-    addDoc(collection(db, "notes"), restore).catch(console.error);
+    addDoc(collection(db, "notes"), restore)
+      .catch((err) => { console.error(err); showToast("Couldn't restore the note"); });
   });
 }
 
@@ -489,7 +484,7 @@ function saveDraft(): void {
   if (editingId || !draftKey) return;
   const title = $<HTMLInputElement>("nt").value;
   const body  = $<HTMLTextAreaElement>("nb").value;
-  if (!title.trim() && !body.trim()) { localStorage.removeItem(draftKey); return; }
+  if (!title.trim() && !body.trim()) { store.remove(draftKey); return; }
   writeDraft(draftKey, {
     title, body,
     tag:    $<HTMLSelectElement>("ntag").value as Tag,
@@ -497,13 +492,12 @@ function saveDraft(): void {
   });
 }
 
-function writeDraft(key: string, draft: Draft): void { localStorage.setItem(key, JSON.stringify(draft)); }
+function writeDraft(key: string, draft: Draft): void { store.set(key, JSON.stringify(draft)); }
 
-function clearDraft(): void { if (draftKey) localStorage.removeItem(draftKey); }
+function clearDraft(): void { if (draftKey) store.remove(draftKey); }
 
 function loadDraft(): Draft | null {
-  if (!draftKey) return null;
-  try { return parseDraft(localStorage.getItem(draftKey)); } catch { return null; }
+  return draftKey ? parseDraft(store.get(draftKey)) : null;
 }
 
 // ── Save note ─────────────────────────────────────────────────────────────────
@@ -514,8 +508,9 @@ function loadDraft(): Draft | null {
 function saveNote(user: User): void {
   const btn = $<HTMLButtonElement>("save-btn");
   if (btn.disabled) return; // save already in flight (double-click / Cmd+Enter)
-  const title  = $<HTMLInputElement>("nt").value.trim().slice(0, 200) || "Untitled";
-  const body   = $<HTMLTextAreaElement>("nb").value.trim().slice(0, 20000);
+  if (editingId && editOriginal && !isDraftChanged(editOriginal, modalDraft())) { closeModal(); return; }
+  const title  = clip($<HTMLInputElement>("nt").value.trim(), TITLE_MAX) || "Untitled";
+  const body   = clip(tidyBody($<HTMLTextAreaElement>("nb").value), BODY_MAX);
   const tag    = $<HTMLSelectElement>("ntag").value      as Tag;
   const pinned = $<HTMLInputElement>("npin").checked;
   btn.disabled = true;
@@ -537,18 +532,20 @@ function saveNote(user: User): void {
 // ── Firestore listener ────────────────────────────────────────────────────────
 function subscribeToNotes(user: User): void {
   unsubNotes?.();
+  loadState = "loading";
   const q = query(collection(db, "notes"), where("uid", "==", user.uid));
   unsubNotes = onSnapshot(
     q,
     (snap) => {
-      notes = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Note, "id">) }));
+      loadState = "ready";
+      notes = snap.docs.map(noteFromSnapshot);
       const el = $("note-count");
       if (el) el.textContent = `Free · ${notes.length} note${notes.length !== 1 ? "s" : ""}`;
       updateNavCounts();
       renderCards();
       refreshView();
     },
-    (err) => { console.error("Firestore:", err); showLoadError(); },
+    (err) => { console.error("Firestore:", err); loadState = "failed"; showLoadError(); },
   );
 }
 
@@ -571,7 +568,7 @@ function updateNavCounts(): void {
   const counts: Record<string, number> = { all: notes.length, pinned: 0, work: 0, ideas: 0, personal: 0 };
   for (const n of notes) {
     if (n.pinned) counts.pinned++;
-    if (counts[n.tag] !== undefined) counts[n.tag]++;
+    if (Object.hasOwn(TL, n.tag)) counts[n.tag]++; // not a legacy "pinned"/"all" tag
   }
   document.querySelectorAll<HTMLElement>(".ncount").forEach((el) => {
     el.textContent = String(counts[el.dataset.count ?? ""] ?? 0);
@@ -647,7 +644,7 @@ function bindEvents(user: User): void {
     renderCards(true);
   }
   $<HTMLInputElement>("search-input").addEventListener("input", (e) => {
-    searchQuery = (e.target as HTMLInputElement).value.toLowerCase();
+    searchQuery = (e.target as HTMLInputElement).value;
     syncSearchUI();
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => renderCards(true), 120);
@@ -676,10 +673,10 @@ function bindEvents(user: User): void {
   $("ov").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveNote(user);
   });
-  $("ov").addEventListener("click", (e) => { if (e.target === $("ov")) requestCloseModal(); });
+  onBackdropClick($("ov"), requestCloseModal);
 
   $("view-close").addEventListener("click", () => closeView());
-  $("ov-view").addEventListener("click", (e) => { if (e.target === $("ov-view")) closeView(); });
+  onBackdropClick($("ov-view"), () => closeView());
   $("view-edit").addEventListener("click", () => {
     const id = viewId, back = dialogReturn;
     closeView(false);
@@ -729,10 +726,12 @@ function bindEvents(user: User): void {
       if (to) { e.preventDefault(); to.focus(); }
       return;
     }
-    const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+    const inInput  = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+    const viewOpen = !!$("ov-view")?.classList.contains("open");
+    const editOpen = !!$("ov")?.classList.contains("open");
     if (e.key === "Escape") {
-      if ($("ov-view")?.classList.contains("open")) { closeView(); return; }
-      if ($("ov")?.classList.contains("open"))      { requestCloseModal(); return; }
+      if (viewOpen) { closeView(); return; }
+      if (editOpen) { requestCloseModal(); return; }
       const si = $<HTMLInputElement>("search-input");
       if (si && document.activeElement === si && si.value) { clearSearch(); return; }
     }
@@ -743,9 +742,10 @@ function bindEvents(user: User): void {
       if (undoFromToast()) e.preventDefault();
       return;
     }
-    if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+    // Either case (Caps Lock), but not with Shift: Ctrl/Cmd+Shift+N is the browser's.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "n") {
       e.preventDefault();
-      if (!$("ov")?.classList.contains("open") && !$("ov-view")?.classList.contains("open")) openModal();
+      if (!editOpen && !viewOpen) openModal();
       return;
     }
     // "/" only while no control has focus – body or a non-interactive focus
