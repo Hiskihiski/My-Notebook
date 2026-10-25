@@ -13,8 +13,13 @@ export default defineConfig({
         theme_color: "#f0f0ed",
         background_color: "#f0f0ed",
         display: "standalone",
+        // PNGs rendered from favicon.svg (light scheme); the maskable one is a
+        // full-bleed square with the mark inside the 80 % safe zone.
         icons: [
           { src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       // Register the service worker with a deferred script instead of a
