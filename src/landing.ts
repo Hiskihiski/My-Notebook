@@ -37,7 +37,7 @@ export function renderLanding(root: HTMLElement, onGetStarted: () => void): void
             </li>
           `).join("")}
         </ul>
-        <p class="legal-links"><a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a></p>
+        <p class="legal-links"><a href="/datenschutz.html">Datenschutz</a></p>
       </main>
     </div>
   `;

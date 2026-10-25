@@ -52,7 +52,7 @@ export function teardownApp(): void {
 const LEGAL_FOOT = `<p class="grid-foot">Protected by reCAPTCHA – the Google
   <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
   <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
-  · <a href="/datenschutz.html">Datenschutz</a> · <a href="/impressum.html">Impressum</a></p>`;
+  · <a href="/datenschutz.html">Datenschutz</a></p>`;
 
 const SKELETONS =
   `<div class="sk-card"><div class="sk-line t"></div><div class="sk-line b"></div><div class="sk-line b2"></div><div class="sk-line g"></div></div>`.repeat(6);

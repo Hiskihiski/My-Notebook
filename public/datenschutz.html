@@ -1,9 +1,4 @@
 <!doctype html>
-<!--
-  Vorlage – vor Veröffentlichung rechtlich prüfen lassen.
-  Alle Angaben in [ECKIGEN KLAMMERN] müssen vom Betreiber ersetzt bzw. geprüft werden.
-  Grundlage: Daten-Inventar des Audits (welche Dienste, Speicher und Formulare die App nutzt).
--->
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
@@ -18,18 +13,17 @@
     <main class="legal">
       <p class="legal-back"><a href="/">&larr; Zurück zu Notebook</a></p>
       <h1>Datenschutzerklärung</h1>
-      <p class="legal-meta">Stand: [DATUM]</p>
+      <p class="legal-meta">Stand: 25. Oktober 2026</p>
 
       <h2>1. Verantwortlicher</h2>
-      <p>[NAME]<br />[STRASSE HAUSNUMMER]<br />[PLZ ORT]<br />E-Mail: <a href="mailto:[E-MAIL]">[E-MAIL]</a></p>
-      <p>[FALLS VORHANDEN: Kontaktdaten des Datenschutzbeauftragten – sonst diesen Satz löschen.]</p>
+      <p>Mohid<br />E-Mail: <a href="mailto:plange030358@gmail.com">plange030358@gmail.com</a></p>
 
       <h2>2. Überblick</h2>
       <p>Notebook ist eine Web-App zum Schreiben und Synchronisieren eigener Notizen. Wir setzen <strong>keine</strong> Analyse-, Tracking- oder Werbedienste ein. Personenbezogene Daten verarbeiten wir nur, soweit das für die Bereitstellung der Website, Ihr Nutzerkonto, Ihre Notizen und den Schutz vor Missbrauch nötig ist.</p>
       <p>Solange Sie die Startseite nur ansehen und nicht auf „Get started“ klicken (und nicht angemeldet sind), lädt die Seite ausschließlich eigene Dateien; es werden keine Dienste Dritter eingebunden.</p>
 
       <h2>3. Hosting</h2>
-      <p>Die Website wird über <strong>Firebase Hosting</strong> ausgeliefert (Anbieter: Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland; Unterauftragsverarbeiter u.&nbsp;a. Google LLC, USA). Beim Aufruf werden technisch notwendige Daten verarbeitet: IP-Adresse, Datum und Uhrzeit, aufgerufene URL, Referrer, Browser und Betriebssystem. Zweck ist die sichere und stabile Auslieferung der Website. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren Betrieb). [SPEICHERDAUER DER SERVER-LOGS PRÜFEN UND ERGÄNZEN.]</p>
+      <p>Die Website wird über <strong>Firebase Hosting</strong> ausgeliefert (Anbieter: Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland; Unterauftragsverarbeiter u.&nbsp;a. Google LLC, USA). Beim Aufruf werden technisch notwendige Daten verarbeitet: IP-Adresse, Datum und Uhrzeit, aufgerufene URL, Referrer, Browser und Betriebssystem. Zweck ist die sichere und stabile Auslieferung der Website. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren Betrieb). Wir selbst werten diese Zugriffsdaten nicht aus; Google verarbeitet sie für den Hosting-Betrieb und löscht sie nach den dort geltenden Fristen.</p>
 
       <h2>4. Nutzerkonto und Anmeldung</h2>
       <p>Für die Anmeldung nutzen wir <strong>Firebase Authentication</strong> (Google). Sie können sich mit Ihrem Google-Konto, mit E-Mail und Passwort oder über einen per E-Mail zugesandten Anmeldelink anmelden. Dabei werden verarbeitet: E-Mail-Adresse, eine Nutzerkennung (UID), bei Passwort-Anmeldung ein Passwort-Hash (gespeichert bei Google), bei Google-Anmeldung zusätzlich Name, Profilbild-URL und Google-Kontokennung, außerdem Zeitpunkte der Anmeldung, IP-Adresse und Anmelde-Tokens.</p>
@@ -37,12 +31,12 @@
       <p>Zweck ist die Bereitstellung Ihres Kontos und Ihrer Notizen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Nutzungsvertrag).</p>
 
       <h2>5. Notizen</h2>
-      <p>Ihre Notizen (Titel, Text, Tag, Markierung „angeheftet“, Erstellungs- und Änderungszeitpunkt) werden zusammen mit Ihrer Nutzerkennung in <strong>Cloud Firestore</strong> (Google) gespeichert, damit sie auf allen Ihren Geräten verfügbar sind. Speicherort der Datenbank: [REGION, z.&nbsp;B. „EU (eur3)“ – IN DER FIREBASE-KONSOLE PRÜFEN]. Nur Sie können Ihre Notizen lesen und ändern; das stellen Zugriffsregeln auf dem Server sicher. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
+      <p>Ihre Notizen (Titel, Text, Tag, Markierung „angeheftet“, Erstellungs- und Änderungszeitpunkt) werden zusammen mit Ihrer Nutzerkennung in <strong>Cloud Firestore</strong> (Google) gespeichert, damit sie auf allen Ihren Geräten verfügbar sind. Die Datenbank liegt in einem Rechenzentrum von Google in Deutschland (Region <code>europe-west10</code>, Berlin). Nur Sie können Ihre Notizen lesen und ändern; das stellen Zugriffsregeln auf dem Server sicher. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
       <p>Bitte beachten Sie: Was Sie in Notizen schreiben, bestimmen Sie selbst. Wenn Sie dort besonders schützenswerte Daten (z.&nbsp;B. Gesundheitsdaten) ablegen, werden auch diese gespeichert.</p>
 
       <h2>6. Schutz vor Missbrauch (Firebase App Check mit reCAPTCHA Enterprise)</h2>
-      <p>Um unsere Datenbank und die Anmeldung vor automatisierten Zugriffen zu schützen, nutzen wir <strong>Firebase App Check</strong> mit <strong>Google reCAPTCHA Enterprise</strong> (Google). Der Dienst wird erst geladen, wenn Sie auf „Get started“ klicken oder bereits angemeldet sind. reCAPTCHA verarbeitet dabei u.&nbsp;a. IP-Adresse, Browser- und Geräteinformationen, Spracheinstellung, die aufgerufene Seite sowie Interaktionssignale und setzt das Cookie <code>_GRECAPTCHA</code> (Domain google.com, Laufzeit bis zu 180 Tage) sowie Einträge im lokalen Speicher Ihres Browsers.</p>
-      <p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am Schutz vor Missbrauch) und für den Zugriff auf Ihr Endgerät § 25 Abs. 2 Nr. 2 TDDDG. [RECHTSGRUNDLAGE PRÜFEN LASSEN – reCAPTCHA wird von Aufsichtsbehörden teils als einwilligungspflichtig angesehen.] Weitere Informationen: <a href="https://policies.google.com/privacy" rel="noopener">Datenschutzerklärung von Google</a>, <a href="https://policies.google.com/terms" rel="noopener">Nutzungsbedingungen von Google</a>.</p>
+      <p>Um unsere Datenbank und die Anmeldung vor automatisierten Zugriffen zu schützen, nutzen wir <strong>Firebase App Check</strong> mit <strong>Google reCAPTCHA Enterprise</strong> (Google). Der Dienst wird erst geladen, wenn Sie auf „Get started“ klicken oder bereits angemeldet sind. reCAPTCHA verarbeitet dabei u.&nbsp;a. IP-Adresse, Browser- und Geräteinformationen, Spracheinstellung, die aufgerufene Seite sowie Interaktionssignale und setzt das Cookie <code>_GRECAPTCHA</code> (Domain google.com, Laufzeit bis zu 180 Tage) sowie Einträge im lokalen Speicher Ihres Browsers. Aus diesen Signalen bewertet Google, ob die Anfragen von einer echten Nutzung der App stammen; das Ergebnis erhält die App als App-Check-Token, das sie ihren Anfragen an Datenbank und Anmeldung beifügt. Zur Übermittlung an Google in die USA siehe Abschnitt 9.</p>
+      <p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am Schutz vor Missbrauch) und für den Zugriff auf Ihr Endgerät § 25 Abs. 2 Nr. 2 TDDDG. Weitere Informationen: <a href="https://policies.google.com/privacy" rel="noopener">Datenschutzerklärung von Google</a>, <a href="https://policies.google.com/terms" rel="noopener">Nutzungsbedingungen von Google</a>.</p>
 
       <h2>7. Speicherung auf Ihrem Endgerät</h2>
       <p>Die App speichert folgende Informationen im Speicher Ihres Browsers (localStorage, IndexedDB, Service-Worker-Cache). Sie sind für die von Ihnen gewünschten Funktionen erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG):</p>
@@ -64,19 +58,19 @@
       <p>Wenn Sie in einer Notiz ein Bild von einer fremden Website einbinden (Markdown <code>![…](https://…)</code>), lädt Ihr Browser dieses Bild beim Anzeigen direkt von dort. Der Betreiber dieser Website erhält dabei Ihre IP-Adresse. Darauf haben wir keinen Einfluss.</p>
 
       <h2>9. Empfänger und Übermittlung in Drittländer</h2>
-      <p>Empfänger der Daten ist Google als Auftragsverarbeiter (Art. 28 DSGVO) für Hosting, Anmeldung, Datenbank und Missbrauchsschutz. Dabei können Daten an Google LLC in die USA übermittelt werden. Google LLC ist unter dem EU-U.S. Data Privacy Framework zertifiziert (Angemessenheitsbeschluss, Art. 45 DSGVO); ergänzend gelten die EU-Standardvertragsklauseln in den Google-Bedingungen. [AUFTRAGSVERARBEITUNGSBEDINGUNGEN IN DER FIREBASE-KONSOLE AKZEPTIEREN UND HIER BENENNEN.]</p>
+      <p>Empfänger der Daten ist Google als Auftragsverarbeiter (Art. 28 DSGVO) für Hosting, Anmeldung, Datenbank und Missbrauchsschutz. Dabei können Daten an Google LLC in die USA übermittelt werden. Google LLC ist unter dem EU-U.S. Data Privacy Framework zertifiziert (Angemessenheitsbeschluss, Art. 45 DSGVO); ergänzend gelten die EU-Standardvertragsklauseln in den Google-Bedingungen. Grundlage der Auftragsverarbeitung sind die Datenverarbeitungsbedingungen von Google (Firebase Data Processing and Security Terms bzw. Cloud Data Processing Addendum).</p>
 
       <h2>10. Speicherdauer</h2>
-      <p>Kontodaten und Notizen speichern wir, bis Sie Ihre Notizen bzw. Ihr Konto löschen. [SPEICHERDAUER FESTLEGEN, z.&nbsp;B. Löschung inaktiver Konten nach X Monaten.] Einzelne Notizen können Sie jederzeit in der App löschen. Für die Löschung Ihres gesamten Kontos schreiben Sie uns bitte an <a href="mailto:[E-MAIL]">[E-MAIL]</a>.</p>
+      <p>Kontodaten und Notizen speichern wir, bis Sie Ihre Notizen bzw. Ihr Konto löschen. Einzelne Notizen können Sie jederzeit in der App löschen. Für die Löschung Ihres gesamten Kontos schreiben Sie uns bitte an <a href="mailto:plange030358@gmail.com">plange030358@gmail.com</a>.</p>
 
       <h2>11. Ihre Rechte</h2>
       <p>Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO (Art. 21). Wenden Sie sich dafür an die oben genannte Adresse.</p>
-      <p>Sie haben außerdem das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren, etwa bei der für Ihren Wohnort oder für uns zuständigen Behörde: [ZUSTÄNDIGE AUFSICHTSBEHÖRDE MIT ANSCHRIFT].</p>
+      <p>Sie haben außerdem das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren (Art. 77 DSGVO), insbesondere in dem Mitgliedstaat Ihres gewöhnlichen Aufenthaltsorts, Ihres Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes.</p>
 
       <h2>12. Pflicht zur Bereitstellung und automatisierte Entscheidungen</h2>
-      <p>Die Bereitstellung Ihrer E-Mail-Adresse ist für ein Nutzerkonto erforderlich; ohne Konto können keine Notizen gespeichert werden. Eine automatisierte Entscheidungsfindung im Sinne von Art. 22 DSGVO findet nicht statt. [PRÜFEN, FALLS APP-CHECK-ENFORCEMENT AKTIVIERT WIRD.]</p>
+      <p>Die Bereitstellung Ihrer E-Mail-Adresse ist für ein Nutzerkonto erforderlich; ohne Konto können keine Notizen gespeichert werden. Eine automatisierte Entscheidungsfindung im Sinne von Art. 22 DSGVO findet nicht statt.</p>
 
-      <p class="legal-foot"><a href="/impressum.html">Impressum</a> · <a href="/">Zurück zu Notebook</a></p>
+      <p class="legal-foot"><a href="/">Zurück zu Notebook</a></p>
     </main>
   </body>
 </html>
