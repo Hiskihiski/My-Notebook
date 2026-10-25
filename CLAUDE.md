@@ -29,18 +29,28 @@ Firebase Hosting is wired up (`firebase.json` → `dist/`, project `my-notebook-
 
 Single-page app, no framework. Everything is vanilla TS talking to Firebase directly. Rendering is `innerHTML` template strings; there is no virtual DOM. All source is in `src/`; all CSS is in `src/style.css`.
 
-**Entry & routing (`src/main.ts`)** — mounts to `#app` and listens on `onAuthStateChanged`. Three top-level screens, chosen by auth state:
+**Entry & boot (`src/main.ts`, `src/boot.ts`)** — mounts to `#app`. `main.ts` must stay free of Firebase imports: a first-time visitor's landing page loads only `main.ts` + `landing.ts`, so no App Check/reCAPTCHA request, cookie or Firebase IndexedDB exists before they click "Get started" (privacy, § 25 TDDDG). Firebase starts via `import("./session")` when (`boot.ts`):
+- "Get started" is clicked → login screen,
+- `localStorage["signedIn"] === "1"` (set/cleared by `session.ts` on every auth change),
+- the URL is an email sign-in link, or `sessionStorage["pendingGoogleRedirect"]` is set (`login.ts` sets it before `signInWithRedirect`),
+- or `hasPersistedAuthUser()` finds a Firebase auth user in IndexedDB (sessions from before the flag existed; it never creates the DB).
+
+**Auth routing (`src/session.ts`, own chunk)** — listens on `onAuthStateChanged`. Three top-level screens, chosen by auth state:
 - `renderLanding` (first-load, signed-out) → marketing screen
 - `renderLogin` (subsequent signed-out) → Google / email+password / email-link flows
 - `renderApp` (signed-in) → the notebook UI
 
-The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the login screen rather than the landing page. `main.ts` also handles the email-link completion path (`isSignInWithEmailLink` → `signInWithEmailLink`), stripping the `oobCode` from the URL either way.
+The `isFirstAuthLoad` flag exists so a failed email-link sign-in surfaces on the login screen rather than the landing page. `session.ts` also handles the email-link completion path (`isSignInWithEmailLink` → `signInWithEmailLink`), stripping the `oobCode` from the URL either way, and `getRedirectResult`.
 
 **App shell (`src/app.ts`)** — holds all app state as module-level `let`s (`notes`, `filter`, `searchQuery`, `sortOrder`, `editingId`, `viewId`, `unsubNotes`, timers, keyboard handler). **`teardownApp()` must be called on every auth change** (including sign-out) — it unsubscribes the Firestore listener, clears timers, removes the global keydown handler, and resets state. Adding new listeners/timers means adding matching cleanup in `teardownApp`.
 
-Notes are read via a live `onSnapshot` on `collection("notes") where uid == user.uid`, mapped through `noteFromSnapshot` (`src/notes.ts`), which reads pending server timestamps as estimates and coerces fields older app versions wrote differently. Filtering/sorting is client-side (`visibleNotes`): pinned notes always float to the top, then newest/oldest/A–Z. Deletes are optimistic-with-undo via a toast (see `deleteNote`) — the doc is deleted immediately and re-`addDoc`'d from `restoreData` if Undo is pressed (this generates a *new* doc id; `restoreData` makes legacy notes pass today's create rules).
+Dialogs (`#ov`, `#ov-view`) are `role="dialog"`/`aria-modal`; while one is open the rest of the app is `inert`, Tab is trapped (`trapTab` in `src/focus.ts`) and focus returns to the opener on close. `renderCards()` rebuilds the grid with `innerHTML`, so it saves and restores keyboard focus (`saveFocus`/`restoreFocus`) — keep that when adding re-renders.
+
+Notes are read via a live `onSnapshot` on `collection("notes") where uid == user.uid`, mapped through `noteFromSnapshot` (`src/notes.ts`), which reads pending server timestamps as estimates and coerces fields older app versions wrote differently. Filtering/sorting is client-side (`visibleNotes`): pinned notes always float to the top, then newest/oldest/A–Z. Deletes are optimistic-with-undo via a toast (see `deleteNote`; the toast in `ui.ts` is a permanent `role=status` live region, Undo also works with Ctrl/Cmd+Z) — the doc is deleted immediately and re-`addDoc`'d from `restoreData` if Undo is pressed (this generates a *new* doc id; `restoreData` makes legacy notes pass today's create rules).
 
 Writes (`saveNote`, `deleteNote`) are **not awaited**: Firestore applies them to the local cache immediately (so `onSnapshot` updates the list) but only settles the promise once the server confirms, which never happens offline. The UI closes/confirms right away and only a `.catch` reports failures; keep new writes on that pattern or offline saves hang.
+
+Signing out (`doSignOut`) asks first if writes haven't synced (`pendingWritesSynced` in `src/offline-cache.ts`), sets `localStorage["signOutAt"]` and calls `signOut`. `session.ts` handles every signed-in → signed-out transition: if a Sign out happened within the last minute (any tab) it terminates Firestore and clears its IndexedDB cache and `firestore_*` keys (`clearOfflineNotes`), then reloads straight into the login screen (`sessionStorage["justSignedOut"]`); `db` can't be reused after `terminate`. A session that ends without the button keeps the cache — after the auth switch Firestore can't tell whether edits are unsynced. Editing an existing note keeps no draft; closing the dialog with changes (Esc, backdrop, Cancel) asks before discarding (`isDraftChanged`). Search matches the markdown source and its rendered text (`markdownText`).
 
 Unsaved new-note state is persisted to `localStorage["noteDraft:<uid>"]` on every input so a reload or accidental dismiss doesn't lose work. Drafts are per user (the key is set in `renderApp`, reset in `teardownApp`), only saved for **new** notes, cleared when a save is issued and on explicit sign-out, and written back if a save is later rejected.
 
@@ -54,7 +64,7 @@ Unsaved new-note state is persisted to `localStorage["noteDraft:<uid>"]` on ever
 
 ## PWA
 
-`firebase.json` sets a Content-Security-Policy plus X-Frame-Options/nosniff/Referrer-Policy/Permissions-Policy on `/` and `/index.html` only — never on `/**`, because Firebase serves the Google sign-in handler from `/__/auth/*` on our own domain and those headers would break it. Loading anything from a new external host (script, API, iframe, image host is already `https:`) means extending the CSP. Don't add `Cross-Origin-Opener-Policy` (breaks `signInWithPopup`) or `Referrer-Policy: no-referrer` (the API key's website restriction checks the referrer). `/assets/**` is cached for a year (hashed names); `index.html`, `sw.js`, `registerSW.js` and the manifest are `no-cache`.
+`firebase.json` sets a Content-Security-Policy plus X-Frame-Options/nosniff/Referrer-Policy/Permissions-Policy on every path **except `/__/*`** (regex `^(/(_?|[^_][\s\S]*|_[^_][\s\S]*)|404\.html)$`, RE2, newline-safe because Hosting decodes %-escapes) — never on plain `/**`, because Firebase serves the Google sign-in handler from `/__/auth/*` on our own domain and those headers would break it. There is **no catch-all rewrite**: the app only lives at `/` (no router), unknown paths get `public/404.html` with a real 404 status, and `/.well-known/security.txt` is rewritten to `/security.txt`. The service worker's `navigateFallbackAllowlist` keeps it that way offline/online (only `/` and `/index.html` fall back to the app shell; `404.html` is not precached because its 404 status would fail the install). Loading anything from a new external host (script, API, iframe, image host is already `https:`) means extending the CSP. Don't add `Cross-Origin-Opener-Policy` (breaks `signInWithPopup`) or `Referrer-Policy: no-referrer` (the API key's website restriction checks the referrer). `/assets/**` is cached for a year (hashed names); `index.html`, `sw.js`, `registerSW.js` and the manifest are `no-cache`.
 
 `vite-plugin-pwa` with `registerType: "autoUpdate"` generates a service worker. `navigateFallbackDenylist: [/^\/__/]` keeps Firebase Auth/Firestore endpoints out of the SW cache — don't broaden the precache glob to include those paths. Firestore itself uses `persistentLocalCache` + `persistentMultipleTabManager` in `src/firebase.ts` for offline reads.
 
@@ -64,6 +74,5 @@ Unsaved new-note state is persisted to `localStorage["noteDraft:<uid>"]` on ever
 - TS is strict-ish: `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`. Prefix intentionally-unused params with `_` (ESLint `argsIgnorePattern: "^_"`).
 - Go through `store` (`src/storage.ts`) rather than `localStorage` directly: `localStorage` throws when the browser blocks site data, which used to stop the app from starting.
 - Theme variables are `--text-s/--text-m/--pin/--err` etc.; prefer them over hard-coded colors.
-- `@emailjs/browser` is listed in dependencies but currently unused in `src/`.
 - `firebase` is pinned to exactly `12.14.0`: from 12.15 on, Firestore bundles `re2js` (~56 kB gzip, unused here), growing the main chunk ~37%. Compare bundle size before raising the pin.
 - `.claude/skills/emil-design-eng/` is a vendored skill tracked by `skills-lock.json`; don't edit it by hand.

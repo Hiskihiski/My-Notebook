@@ -15,3 +15,9 @@ export function parseDraft(raw: string | null): Draft | null {
     };
   } catch { return null; }
 }
+
+// True when the edit dialog's fields differ from the note as it was opened.
+export function isDraftChanged(before: Draft, now: Draft): boolean {
+  return before.title !== now.title || before.body !== now.body
+    || before.tag !== now.tag || before.pinned !== now.pinned;
+}

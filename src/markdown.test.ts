@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMd, previewMd } from "./markdown";
+import { renderMd, previewMd, markdownText } from "./markdown";
 
 describe("renderMd", () => {
   it("renders basic Markdown", () => {
@@ -44,6 +44,12 @@ describe("renderMd", () => {
     const html = renderMd('<form action="/x"><input name="q"></form>');
     expect(html).not.toContain("<form");
     expect(html).toContain("<input");
+  });
+
+  it("drops inline styles, so note content can't cover the app", () => {
+    const html = renderMd('<div style="position:fixed;inset:0;z-index:9999">x</div>');
+    expect(html).not.toContain("style");
+    expect(html).toContain(">x</div>");
   });
 
   it("keeps task-list checkboxes", () => {
@@ -104,5 +110,14 @@ describe("previewMd", () => {
 
   it("strips blockquote markers but keeps comparisons", () => {
     expect(previewMd("> quoted\n>tight\n2 > 1")).toBe("quoted\ntight\n2 &gt; 1");
+  });
+});
+
+describe("markdownText", () => {
+  it("returns the text a note renders to", () => {
+    expect(markdownText("Some *idea* with **bold**")).toBe("Some idea with bold");
+    expect(markdownText("~~old~~ and `code` and __under__")).toBe("old and code and under");
+    expect(markdownText("# Title\n> quote\n- item\n2. second")).toBe("Title\nquote\nitem\nsecond");
+    expect(markdownText("see [the docs](https://x.example/a_b) ![logo](l.png)")).toBe("see the docs logo");
   });
 });

@@ -1,74 +1,65 @@
 import "./style.css";
-import {
-  getRedirectResult, onAuthStateChanged,
-  isSignInWithEmailLink, signInWithEmailLink,
-} from "firebase/auth";
-import { auth } from "./firebase";
-import { initTheme } from "./ui";
-import { store } from "./storage";
+import { $, initTheme } from "./ui";
 import { renderLanding } from "./landing";
-import { renderLogin, showLoginError, clearLoginError, EMAIL_FOR_SIGN_IN_KEY } from "./login";
-import { renderApp, teardownApp } from "./app";
+import { dropExpiredSignInEmail } from "./email-link";
+import {
+  shouldBootFirebase, hasPersistedAuthUser, firstScreen, setFlag, SIGNED_OUT_KEY, type SignedOutScreen,
+} from "./boot";
 
-let isFirstAuthLoad = true;
+// Same spinner as #app-loading in index.html, but on the active theme's
+// background (index.html's only follows the OS colour scheme).
+const LOADING_HTML = `<div id="app-loading" style="background:var(--bg)"><span></span></div>`;
 
-// Completes passwordless sign-in when the page is opened from an emailed link.
-async function completeEmailLinkSignIn(): Promise<void> {
-  let email = store.get(EMAIL_FOR_SIGN_IN_KEY);
-  if (!email) {
-    // Link was opened on a different device/browser than the one that requested it.
-    // Trimmed: mobile keyboards add a space after an autocompleted address.
-    email = window.prompt("Confirm your email to finish signing in:")?.trim() || null;
-  }
+function renderLoadError(root: HTMLElement): void {
+  root.innerHTML = `
+    <main class="login-wrap" id="load-error">
+      <div class="login-box">
+        <div class="login-icon" aria-hidden="true">&#x1F4D3;</div>
+        <h1>Notebook</h1>
+        <div class="login-err" role="alert">Couldn't load Notebook. Check your connection and try again.</div>
+        <button class="g-btn email-btn" id="load-retry">Try again</button>
+      </div>
+    </main>
+  `;
+  // A reload also picks up a new deploy if the old chunk is gone.
+  $<HTMLButtonElement>("load-retry").addEventListener("click", () => window.location.reload());
+}
+
+// Firebase (App Check, Auth, Firestore) lives in the session chunk; until it
+// is imported the page makes no third-party requests and creates no Firebase
+// storage (no App Check, no reCAPTCHA cookie, no IndexedDB).
+async function bootFirebase(root: HTMLElement, firstSignedOutScreen: SignedOutScreen): Promise<void> {
   try {
-    if (!email) throw new Error("Email confirmation cancelled.");
-    await signInWithEmailLink(auth, email, window.location.href);
-    store.remove(EMAIL_FOR_SIGN_IN_KEY);
+    const { startSession } = await import("./session");
+    startSession(root, firstSignedOutScreen);
   } catch (err: unknown) {
-    // Already signed in (an old link opened again): nothing to report.
-    if (!auth.currentUser) showLoginError(`Sign-in link failed: ${(err as Error).message ?? "unknown"}. Request a new link.`);
-  } finally {
-    // Strip the oobCode etc. from the address bar either way.
-    window.history.replaceState(null, "", window.location.pathname);
+    console.error("Loading the app failed:", err);
+    renderLoadError(root);
   }
 }
 
-function startApp(): void {
+async function startApp(): Promise<void> {
   const root = document.querySelector<HTMLElement>("#app");
-  if (!root) { setTimeout(startApp, 10); return; }
+  if (!root) { setTimeout(() => void startApp(), 10); return; }
 
   initTheme();
+  dropExpiredSignInEmail(() => localStorage, Date.now());
 
-  if (isSignInWithEmailLink(auth, window.location.href)) {
-    // Route the signed-out state to the login screen (not the landing page)
-    // so a failed link has somewhere to surface its error.
-    isFirstAuthLoad = false;
-    completeEmailLinkSignIn().catch(console.error);
+  // Signed in last time, opening an emailed sign-in link or returning from the
+  // Google redirect: start Firebase straight away (index.html's spinner stays
+  // up). The IndexedDB check finds sessions from before the signedIn flag.
+  if (shouldBootFirebase(window.location.search, () => localStorage, () => sessionStorage)
+      || await hasPersistedAuthUser(import.meta.env.VITE_FIREBASE_API_KEY)) {
+    const screen = firstScreen(() => sessionStorage);
+    setFlag(() => sessionStorage, SIGNED_OUT_KEY, false); // one reload only
+    await bootFirebase(root, screen);
+    return;
   }
 
-  getRedirectResult(auth).catch((err: unknown) => {
-    console.error("getRedirectResult:", err);
-    if (auth.currentUser) return;
-    showLoginError("Sign-in was interrupted — please try again.");
-    // The user was mid sign-in: show the error on the login screen rather
-    // than behind the landing page's "Get started", like a failed email link.
-    if (isFirstAuthLoad) isFirstAuthLoad = false;
-    else if (root.querySelector(".landing")) renderLogin(root);
-  });
-
-  onAuthStateChanged(auth, (user) => {
-    teardownApp();
-    const firstLoad = isFirstAuthLoad;
-    isFirstAuthLoad = false;
-    if (user) {
-      clearLoginError();
-      renderApp(root, user);
-    } else if (firstLoad) {
-      renderLanding(root);
-    } else {
-      renderLogin(root);
-    }
+  renderLanding(root, () => {
+    root.innerHTML = LOADING_HTML;
+    void bootFirebase(root, "login");
   });
 }
 
-startApp();
+void startApp();

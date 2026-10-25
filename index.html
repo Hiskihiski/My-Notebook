@@ -7,21 +7,58 @@
     <meta name="description" content="Notebook — a calm, focused place for your thoughts. Markdown notes with tags, pinning, and instant search, synced across all your devices." />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f0f0ed" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0d10" />
+    <link rel="canonical" href="https://my-notebook-web.web.app/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Notebook" />
+    <meta property="og:url" content="https://my-notebook-web.web.app/" />
+    <meta property="og:title" content="Notebook — Markdown notes with tags, pins &amp; instant search" />
     <meta property="og:description" content="A calm, focused place for your thoughts — markdown notes with tags, pinning, and instant search." />
     <meta property="og:site_name" content="Notebook" />
-    <title>Notebook</title>
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://my-notebook-web.web.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Notebook — a calm, focused place for your thoughts" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>Notebook — Markdown notes with tags, pins &amp; instant search</title>
+    <!-- Structured data: only facts stated on the landing page. -->
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"WebSite","@id":"https://my-notebook-web.web.app/#website","url":"https://my-notebook-web.web.app/","name":"Notebook","inLanguage":"en"},
+        {"@type":"WebApplication","@id":"https://my-notebook-web.web.app/#app","name":"Notebook","url":"https://my-notebook-web.web.app/",
+         "description":"A calm, focused place for your thoughts — markdown notes with tags, pinning, and instant search, synced across every device you own.",
+         "applicationCategory":"ProductivityApplication","operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript",
+         "featureList":["Markdown formatting","Tags: work, ideas, personal","Pinned notes","Instant search by title or content","Sync across devices","Works offline"],
+         "isPartOf":{"@id":"https://my-notebook-web.web.app/#website"}}
+      ]}
+    </script>
     <style>
       /* Shown until the JS bundle loads; replaced by the app's first render. */
       #app-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f0f0ed}
       @media(prefers-color-scheme:dark){#app-loading{background:#0d0d10}}
       #app-loading span{width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(128,128,128,.25);border-top-color:rgba(128,128,128,.75);animation:app-spin .7s linear infinite}
       @keyframes app-spin{to{transform:rotate(360deg)}}
+      @media(prefers-reduced-motion:reduce){#app-loading span{animation-duration:1.5s}}
     </style>
   </head>
   <body>
     <div id="app"><div id="app-loading"><span></span></div></div>
+    <noscript>
+      <style>#app{display:none}html,body{height:auto;overflow:auto}noscript p,noscript ul{margin:0 0 12px}noscript ul{padding-left:20px}</style>
+      <main style="max-width:560px;margin:48px auto;padding:0 20px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.6;color:#1a1a1a">
+        <h1>Notebook</h1>
+        <p>A calm, focused place for your thoughts — markdown notes with tags, pinning, and instant search, synced across every device you own.</p>
+        <ul>
+          <li><strong>Markdown</strong> — Bold, italic, lists — lightweight formatting that stays out of your way.</li>
+          <li><strong>Tags</strong> — Work, ideas, personal. One tap isolates exactly what you need.</li>
+          <li><strong>Pins</strong> — Keep your most-referenced notes locked to the top.</li>
+          <li><strong>Instant search</strong> — Any note, by title or content, in milliseconds.</li>
+          <li><strong>Works offline</strong> — Write without a connection; changes sync when you're back online.</li>
+          <li><strong>Private to your account</strong> — Your notes are stored with your account, and access rules keep other users out.</li>
+        </ul>
+        <p><strong>Notebook needs JavaScript. Please enable it in your browser.</strong></p>
+        <p><a href="/datenschutz.html">Datenschutz</a></p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

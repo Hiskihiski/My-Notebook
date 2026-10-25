@@ -105,8 +105,9 @@ describe("email sign-in link", () => {
     el("send-link-btn").click();
     await flush();
     expect(el("step-link-sent").style.display).toBe("");
-    expect(localStorage.getItem("emailForSignIn")).toBe("new@example.com");
+    expect(JSON.parse(localStorage.getItem("emailForSignIn")!).email).toBe("new@example.com");
 
+    vi.advanceTimersByTime(60_000); // past the resend cooldown
     el("resend-link").click();
     el("resend-link").click();
     await flush();
@@ -114,6 +115,7 @@ describe("email sign-in link", () => {
     expect(el("resend-link").textContent).toBe("Sent!");
     vi.advanceTimersByTime(2500);
     expect(el("resend-link").textContent).toBe("Resend link");
+    vi.advanceTimersByTime(60_000);
     el("resend-link").click();
     await flush();
     expect(sendSignInLinkToEmail).toHaveBeenCalledTimes(3);
@@ -121,7 +123,7 @@ describe("email sign-in link", () => {
 });
 
 describe("showLoginError", () => {
-  const errText = () => el("login-err").style.display === "block" ? el("login-err").textContent : null;
+  const errText = () => el("login-err").textContent || null; // role=alert, empty while there is no error
 
   it("shows the error straight away when the login screen is up", () => {
     showLoginError("Link expired");
@@ -130,8 +132,9 @@ describe("showLoginError", () => {
 
   it("keeps an error raised before the screen exists for the next one, once", () => {
     root.innerHTML = "<div>landing</div>";
+    const timers = vi.getTimerCount();
     showLoginError("Sign-in was interrupted");
-    expect(vi.getTimerCount()).toBe(0); // no polling for the element
+    expect(vi.getTimerCount()).toBe(timers); // no polling for the element
     renderLogin(root);
     expect(errText()).toBe("Sign-in was interrupted");
     renderLogin(root);
@@ -149,7 +152,7 @@ describe("showLoginError", () => {
 
 describe("email and password", () => {
   const err = (code: string, message = code) => Object.assign(new Error(message), { code });
-  const shown = () => el("login-err").style.display === "block" ? el("login-err").textContent : null;
+  const shown = () => el("login-err").textContent || null; // role=alert, empty while there is no error
 
   it("asks for a valid address before moving on, and Enter continues", () => {
     el("email-input").value = "not-an-email";
@@ -223,6 +226,7 @@ describe("email sign-in link errors", () => {
     enterEmail("ada@example.com");
     el("send-link-btn").click();
     await flush();
+    vi.advanceTimersByTime(60_000); // past the resend cooldown
     el("resend-link").click();
     await flush();
     expect(el("login-err").textContent).toBe("Could not send link: offline");
