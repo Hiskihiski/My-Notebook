@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { User } from "firebase/auth";
+import { serializeSignInEmail } from "./email-link";
 
-// main.ts starts the app on import, so every dependency is mocked and the
-// module is re-imported fresh for each test.
+// session.ts keeps a module-level "started" flag, so every dependency that
+// would start Firebase is mocked and the module is re-imported per test.
 const m = vi.hoisted(() => ({
   auth: { currentUser: null as unknown },
   isSignInWithEmailLink: vi.fn(), signInWithEmailLink: vi.fn(),
@@ -11,13 +12,12 @@ const m = vi.hoisted(() => ({
   renderLogin: vi.fn(), showLoginError: vi.fn(), clearLoginError: vi.fn(),
 }));
 vi.mock("./firebase", () => ({ auth: m.auth }));
-vi.mock("./ui", () => ({ initTheme: vi.fn() }));
 vi.mock("./landing", () => ({ renderLanding: m.renderLanding }));
 vi.mock("./app", () => ({ renderApp: m.renderApp, teardownApp: m.teardownApp }));
 vi.mock("./login", () => ({
   renderLogin: m.renderLogin, showLoginError: m.showLoginError, clearLoginError: m.clearLoginError,
-  EMAIL_FOR_SIGN_IN_KEY: "emailForSignIn",
 }));
+vi.mock("./offline-cache", () => ({ clearOfflineNotes: vi.fn(() => Promise.resolve(true)) }));
 vi.mock("firebase/auth", () => ({
   isSignInWithEmailLink: m.isSignInWithEmailLink, signInWithEmailLink: m.signInWithEmailLink,
   getRedirectResult: m.getRedirectResult, onAuthStateChanged: m.onAuthStateChanged,
@@ -25,20 +25,25 @@ vi.mock("firebase/auth", () => ({
 
 const LINK = "/?apiKey=k&oobCode=abc&mode=signIn";
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
+const rememberEmail = (email: string) => localStorage.setItem("emailForSignIn", serializeSignInEmail(email, Date.now()));
 let authChanged: (user: User | null) => void;
+let root: HTMLElement;
 
-async function start(url = "/"): Promise<void> {
+async function start(url = "/", screen: "landing" | "login" = "landing"): Promise<void> {
   history.replaceState(null, "", url);
   vi.resetModules();
-  await import("./main");
+  const { startSession } = await import("./session");
+  startSession(root, screen);
   await flush();
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
   m.auth.currentUser = null;
   document.body.innerHTML = `<div id="app"></div>`;
+  root = document.getElementById("app")!;
   m.isSignInWithEmailLink.mockImplementation((_a: unknown, href: string) => href.includes("oobCode="));
   m.signInWithEmailLink.mockResolvedValue({});
   m.getRedirectResult.mockResolvedValue(null);
@@ -47,22 +52,26 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("screen routing", () => {
-  it("shows the landing page first, then the login screen, then the app", async () => {
+  it("shows the landing page first, then the app, clearing an old login error", async () => {
     await start();
     authChanged(null);
     expect(m.renderLanding).toHaveBeenCalledOnce();
     authChanged({ uid: "alice" } as User);
     expect(m.clearLoginError).toHaveBeenCalledOnce();
-    expect(m.renderApp).toHaveBeenCalledOnce();
+    expect(m.renderApp).toHaveBeenCalledWith(root, { uid: "alice" });
+    expect(m.teardownApp).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts on the login screen when asked to", async () => {
+    await start("/", "login");
     authChanged(null);
     expect(m.renderLogin).toHaveBeenCalledOnce();
-    expect(m.renderLanding).toHaveBeenCalledOnce();
-    expect(m.teardownApp).toHaveBeenCalledTimes(3);
+    expect(m.renderLanding).not.toHaveBeenCalled();
   });
 
   it("goes straight to the login screen when opened from a sign-in link", async () => {
     m.signInWithEmailLink.mockReturnValue(new Promise(() => {})); // still completing
-    localStorage.setItem("emailForSignIn", "ada@example.com");
+    rememberEmail("ada@example.com");
     await start(LINK);
     authChanged(null);
     expect(m.renderLogin).toHaveBeenCalledOnce();
@@ -82,13 +91,13 @@ describe("screen routing", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     let reject!: (e: Error) => void;
     m.getRedirectResult.mockReturnValue(new Promise((_r, rj) => { reject = rj; }));
-    m.renderLanding.mockImplementation((root: HTMLElement) => { root.innerHTML = `<div class="landing"></div>`; });
+    m.renderLanding.mockImplementation((r: HTMLElement) => { r.innerHTML = `<div class="landing"></div>`; });
     await start();
     authChanged(null);
     expect(m.renderLanding).toHaveBeenCalledOnce();
     reject(new Error("redirect failed"));
     await flush();
-    expect(m.renderLogin).toHaveBeenCalledWith(document.getElementById("app"));
+    expect(m.renderLogin).toHaveBeenCalledWith(root);
   });
 
   it("reports an interrupted redirect sign-in only to a signed-out user", async () => {
@@ -106,7 +115,7 @@ describe("screen routing", () => {
 
 describe("email sign-in link", () => {
   it("completes with the address saved on this device, then forgets it and cleans the URL", async () => {
-    localStorage.setItem("emailForSignIn", "ada@example.com");
+    rememberEmail("ada@example.com");
     await start(LINK);
     expect(m.signInWithEmailLink).toHaveBeenCalledWith(m.auth, "ada@example.com", `${location.origin}${LINK}`);
     expect(localStorage.getItem("emailForSignIn")).toBeNull();
@@ -129,16 +138,16 @@ describe("email sign-in link", () => {
   });
 
   it("reports a failed link and still cleans the URL", async () => {
-    localStorage.setItem("emailForSignIn", "ada@example.com");
+    rememberEmail("ada@example.com");
     m.signInWithEmailLink.mockRejectedValue(new Error("The action code is invalid."));
     await start(LINK);
     expect(m.showLoginError).toHaveBeenCalledWith("Sign-in link failed: The action code is invalid.. Request a new link.");
-    expect(localStorage.getItem("emailForSignIn")).toBe("ada@example.com");
+    expect(localStorage.getItem("emailForSignIn")).not.toBeNull();
     expect(location.search).toBe("");
   });
 
   it("stays quiet about a failed link when someone is already signed in", async () => {
-    localStorage.setItem("emailForSignIn", "ada@example.com");
+    rememberEmail("ada@example.com");
     m.auth.currentUser = { uid: "alice" };
     m.signInWithEmailLink.mockRejectedValue(new Error("expired"));
     await start(LINK);

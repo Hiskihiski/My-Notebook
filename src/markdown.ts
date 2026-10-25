@@ -15,12 +15,13 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
 // Full markdown rendering for the view modal. marked's output is sanitized so
 // note content can never inject scripts or event handlers. The rendered note
 // stays in the page after the view closes, so its ids are prefixed (an
-// id="toast" would otherwise capture every later toast) and forms are dropped
-// (Enter in one would reload the app).
+// id="toast" would otherwise capture every later toast), forms are dropped
+// (Enter in one would reload the app) and so are inline styles (a fixed,
+// full-screen element could cover the app's own controls).
 export function renderMd(raw: string): string {
   const html = marked.parse(raw, { async: false });
   return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true }, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: ["form"],
+    USE_PROFILES: { html: true }, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: ["form"], FORBID_ATTR: ["style"],
   });
 }
 
@@ -45,4 +46,14 @@ export function previewMd(raw: string): string {
     .replace(/\*\*([^\s*](?:.*?[^\s*])?)\*\*/g, "<b>$1</b>")
     .replace(/\*([^\s*](?:.*?[^\s*])?)\*/g, "<i>$1</i>")
     .replace(/`(.+?)`/g, "$1");
+}
+
+// The text a note shows once rendered, for search: markdown syntax removed,
+// link and image targets dropped (their text kept).
+export function markdownText(raw: string): string {
+  return raw
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^[ \t]{0,3}(#{1,6}[ \t]+|>[ \t]?|[-*+][ \t]+|\d+[.)][ \t]+)/gm, "")
+    .replace(/\*\*|__|~~|[*_`]/g, "");
 }

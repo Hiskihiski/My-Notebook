@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "icons.svg"],
+      includeAssets: ["favicon.svg"],
       manifest: {
         name: "Notebook",
         short_name: "Notebook",
@@ -17,10 +17,19 @@ export default defineConfig({
           { src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
       },
+      // Register the service worker with a deferred script instead of a
+      // parser-blocking one in <head>.
+      injectRegister: "script-defer",
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png}"],
+        // 404.html: served with status 404, which would fail the whole
+        // precache install. og-image.png: only for link previews.
+        globIgnores: ["404.html", "og-image.png"],
         // Firestore/Auth traffic must never be served from the SW cache.
         navigateFallbackDenylist: [/^\/__/],
+        // The app only lives at /; other paths (legal pages, security.txt,
+        // unknown URLs → 404) must come from the network or precache.
+        navigateFallbackAllowlist: [/^\/(index\.html)?(\?|$)/],
       },
     }),
   ],

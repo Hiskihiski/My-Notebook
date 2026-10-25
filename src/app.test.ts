@@ -12,6 +12,7 @@ vi.mock("firebase/firestore", () => ({
   onSnapshot: vi.fn(), addDoc: vi.fn(), updateDoc: vi.fn(), deleteDoc: vi.fn(),
   serverTimestamp: vi.fn(() => "SERVER_TS"),
 }));
+vi.mock("./offline-cache", () => ({ pendingWritesSynced: vi.fn(() => Promise.resolve(true)) }));
 
 import { addDoc, deleteDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { renderApp, teardownApp } from "./app";
@@ -47,6 +48,8 @@ const toastText = () => el("toast")?.querySelector("span")?.textContent;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  // jsdom has no matchMedia; the mascot asks for prefers-reduced-motion.
+  vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q }) as MediaQueryList);
   localStorage.clear();
   vi.mocked(onSnapshot).mockImplementation(((_q: unknown, next: Listener) => { emit = next; return unsub; }) as never);
   vi.mocked(addDoc).mockReset().mockResolvedValue({} as never);
@@ -379,13 +382,15 @@ describe("dialog and card buttons", () => {
 });
 
 describe("sign out", () => {
-  it("clears the draft, tears down and signs out", async () => {
+  // Tearing down is session.ts's job once Auth reports the sign-out.
+  it("clears the draft, marks the sign-out for every tab and signs out", async () => {
     const { signOut } = await import("firebase/auth");
     el("fab").click();
     type("nt", "private");
     el("signout-btn").click();
+    await flush();
     expect(localStorage.getItem("noteDraft:alice")).toBeNull();
-    expect(unsub).toHaveBeenCalledOnce();
+    expect(Number(localStorage.getItem("signOutAt"))).toBeGreaterThan(0);
     expect(signOut).toHaveBeenCalledOnce();
   });
 });

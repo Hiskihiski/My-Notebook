@@ -38,12 +38,17 @@ export function noteFromSnapshot(d: QueryDocumentSnapshot): Note {
 }
 
 // Filter, search and sort for the card grid. Pinned notes always come first.
-export function visibleNotes(notes: Note[], filter: FilterType, search: string, sort: SortOrder): Note[] {
+// `text` gives a note's lower-case searchable text (app.ts adds the rendered
+// markdown, which needs the DOM).
+export function visibleNotes(
+  notes: Note[], filter: FilterType, search: string, sort: SortOrder,
+  text: (n: Note) => string = (n) => `${n.title} ${n.body}`.toLowerCase(),
+): Note[] {
   const q = search.trim().toLowerCase();
   return notes
     .filter((n) =>
       (filter === "pinned" ? n.pinned : filter === "all" ? true : n.tag === filter) &&
-      (!q || `${n.title} ${n.body}`.toLowerCase().includes(q)))
+      (!q || text(n).includes(q)))
     .sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (sort === "oldest") return millis(a.createdAt) - millis(b.createdAt);

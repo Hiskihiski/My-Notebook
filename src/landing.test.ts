@@ -1,19 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-
-// landing.ts leads to login.ts, which only needs these handles.
-vi.mock("./firebase", () => ({ auth: {}, gProvider: {} }));
-vi.mock("firebase/auth", () => ({}));
-
 import { renderLanding } from "./landing";
 
 describe("renderLanding", () => {
-  it("lists the features and leads to the login screen", () => {
+  it("lists the features and hands \"Get started\" to the caller", () => {
     document.body.innerHTML = `<div id="app"></div>`;
     const root = document.getElementById("app")!;
-    renderLanding(root);
-    expect(root.querySelectorAll(".landing-feature")).toHaveLength(4);
+    const onGetStarted = vi.fn();
+    renderLanding(root, onGetStarted);
+    expect(root.querySelectorAll(".landing-feature")).toHaveLength(6);
+    expect(onGetStarted).not.toHaveBeenCalled();
     root.querySelector<HTMLButtonElement>(".landing-cta")!.click();
-    expect(root.querySelector(".landing")).toBeNull();
-    expect(document.getElementById("google-signin")).not.toBeNull();
+    expect(onGetStarted).toHaveBeenCalledOnce();
   });
 });
