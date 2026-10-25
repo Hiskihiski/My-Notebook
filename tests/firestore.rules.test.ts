@@ -6,9 +6,11 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc,
+  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc,
   Timestamp, updateDoc, where, type Firestore,
 } from "firebase/firestore";
+import { TITLE_MAX, clip, restoreData, toNote } from "../src/notes";
+import { toTag } from "../src/types";
 
 let env: RulesTestEnvironment;
 
@@ -23,6 +25,10 @@ const note = (over: Record<string, unknown> = {}) => ({
 
 const ALICE_NOTE = "AliceNote00000000001";
 const LEGACY_NOTE = "LegacyNote0000000001";
+// Written by an older app version: bad tag, long title, extra field, no createdAt.
+const LEGACY_DATA = {
+  uid: "alice", title: "x".repeat(300), body: "old", tag: "misc", pinned: false, color: "red",
+};
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -37,10 +43,7 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const admin = ctx.firestore() as unknown as Firestore;
     await setDoc(doc(admin, "notes", ALICE_NOTE), { ...note(), createdAt: Timestamp.now() });
-    // Written by an older app version: bad tag, long title, extra field.
-    await setDoc(doc(admin, "notes", LEGACY_NOTE), {
-      uid: "alice", title: "x".repeat(300), body: "old", tag: "misc", pinned: false, color: "red",
-    });
+    await setDoc(doc(admin, "notes", LEGACY_NOTE), LEGACY_DATA);
   });
 });
 
@@ -59,6 +62,14 @@ describe("notes: allowed", () => {
     assertSucceeds(getDocs(query(collection(db("alice"), "notes"), where("uid", "==", "alice")))));
   it("pin a legacy note", () => assertSucceeds(updateDoc(doc(db("alice"), "notes", LEGACY_NOTE), { pinned: true })));
   it("delete a legacy note", () => assertSucceeds(deleteDoc(doc(db("alice"), "notes", LEGACY_NOTE))));
+  it("undo: re-create a legacy note", () =>
+    assertSucceeds(addDoc(collection(db("alice"), "notes"), restoreData(toNote(LEGACY_NOTE, LEGACY_DATA)))));
+  it("save a legacy note from the edit form", () => {
+    const n = toNote(LEGACY_NOTE, LEGACY_DATA);
+    return assertSucceeds(updateDoc(doc(db("alice"), "notes", LEGACY_NOTE), {
+      title: clip(n.title, TITLE_MAX), body: n.body, tag: toTag(n.tag), pinned: n.pinned, updatedAt: serverTimestamp(),
+    }));
+  });
 });
 
 describe("notes: denied", () => {
@@ -84,4 +95,31 @@ describe("notes: denied", () => {
   it("another user deletes the note", () => assertFails(deleteDoc(doc(db("bob"), "notes", ALICE_NOTE))));
   it("signed-out user reads a note", () => assertFails(getDoc(doc(db(), "notes", ALICE_NOTE))));
   it("write to another collection", () => assertFails(addDoc(collection(db("alice"), "other"), { a: 1 })));
+  it("undo: re-create a legacy note as stored", () =>
+    assertFails(addDoc(collection(db("alice"), "notes"), { ...LEGACY_DATA, createdAt: serverTimestamp() })));
+  it("signed-out user creates a note", () => assertFails(addDoc(collection(db(), "notes"), note())));
+  it("signed-out user deletes a note", () => assertFails(deleteDoc(doc(db(), "notes", ALICE_NOTE))));
+  it("create without a tag", () => {
+    const n = note();
+    delete (n as Record<string, unknown>).tag;
+    return assertFails(addDoc(collection(db("alice"), "notes"), n));
+  });
+  it("create with updatedAt that isn't a timestamp", () =>
+    assertFails(addDoc(collection(db("alice"), "notes"), note({ updatedAt: "yesterday" }))));
+  it("create with createdAt as a number", () =>
+    assertFails(addDoc(collection(db("alice"), "notes"), note({ createdAt: Date.now() }))));
+  it("create with a 19- or 21-char ID", async () => {
+    await assertFails(setDoc(doc(db("alice"), "notes", "A".repeat(19)), note()));
+    await assertFails(setDoc(doc(db("alice"), "notes", "A".repeat(21)), note()));
+  });
+  it("update to a 201-char title", () => assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { title: "t".repeat(201) })));
+  it("update to a 20001-char body", () => assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { body: "b".repeat(20001) })));
+  it("update pinned to a string", () => assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { pinned: "yes" })));
+  it("update updatedAt to a string", () => assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { updatedAt: "now" })));
+  it("change createdAt", () =>
+    assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { createdAt: Timestamp.fromMillis(0) })));
+  it("remove the title", () => assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { title: deleteField() })));
+  it("remove uid", () => assertFails(updateDoc(doc(db("alice"), "notes", ALICE_NOTE), { uid: deleteField() })));
+  it("overwrite a note with setDoc as another user", () =>
+    assertFails(setDoc(doc(db("bob"), "notes", ALICE_NOTE), note({ uid: "bob" }))));
 });
