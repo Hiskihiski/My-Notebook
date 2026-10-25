@@ -220,7 +220,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 
 /* ── Overlays ── */
 .ov{
-  position:absolute;inset:0;background:var(--overlay);
+  /* fixed: covers the sidebar too, not just .main */
+  position:fixed;inset:0;background:var(--overlay);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   display:flex;align-items:center;justify-content:center;
   /* visibility (switched after the fade) keeps a closed dialog out of the Tab
