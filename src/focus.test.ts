@@ -72,13 +72,13 @@ describe("restoreFocus after the list is rebuilt", () => {
   });
 
   it("finds links and id'd controls outside the cards again", () => {
-    const foot = `<p><a href="/impressum.html">Impressum</a></p>`;
+    const foot = `<p><a href="/datenschutz.html">Datenschutz</a></p>`;
     render(["a"], foot);
-    q('a[href="/impressum.html"]').focus();
+    q('a[href="/datenschutz.html"]').focus();
     const s = saveFocus(document.activeElement, grid, CFG)!;
     expect(s.index).toBe(-1);
     render(["a", "b"], foot);
-    expect(restoreFocus(grid, s, CFG, fab)).toBe(q('a[href="/impressum.html"]'));
+    expect(restoreFocus(grid, s, CFG, fab)).toBe(q('a[href="/datenschutz.html"]'));
   });
 
   it("returns to the original element when it is still in the document", () => {

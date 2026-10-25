@@ -54,7 +54,7 @@ Security headers, caching and the 404 page are configured in `firebase.json`.
 
 ## Legal
 
-The static pages `public/impressum.html` and `public/datenschutz.html` are templates: fill in the `[PLACEHOLDERS]` and have them reviewed before publishing.
+`public/datenschutz.html` is the privacy policy (German, Art. 13 GDPR); update its date when the data processing changes. There is no imprint (Impressum) page: add one if the app ever becomes a commercial offering (§ 5 DDG).
 
 ## Security
 

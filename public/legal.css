@@ -1,4 +1,4 @@
-/* Static legal pages (impressum.html, datenschutz.html, 404.html). No JS, so
+/* Static legal pages (datenschutz.html, 404.html). No JS, so
    the theme follows the system setting. Colors mirror src/style.css. */
 :root{--bg:#f0f0ed;--surface:#ffffff;--text:#66645f;--text-s:#1a1a1a;--text-m:#6b6b6a;--border:#e0e0db}
 @media(prefers-color-scheme:dark){
