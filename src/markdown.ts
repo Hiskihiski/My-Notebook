@@ -23,3 +23,13 @@ export function previewMd(raw: string): string {
     .replace(/^#{1,6} /gm, "")
     .replace(/^[-*] /gm, "");
 }
+
+// The text a note shows once rendered, for search: markdown syntax removed,
+// link and image targets dropped (their text kept).
+export function markdownText(raw: string): string {
+  return raw
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^[ \t]{0,3}(#{1,6}[ \t]+|>[ \t]?|[-*+][ \t]+|\d+[.)][ \t]+)/gm, "")
+    .replace(/\*\*|__|~~|[*_`]/g, "");
+}

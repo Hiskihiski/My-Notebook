@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # Pinned on purpose: from 12.15 on Firestore bundles re2js (~56 kB gzip).
+      # Compare bundle size before raising it (see CLAUDE.md).
+      - dependency-name: firebase
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
