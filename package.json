@@ -25,6 +25,6 @@
   "dependencies": {
     "dompurify": "^3.4.9",
     "firebase": "12.14.0",
-    "marked": "^18.0.5"
+    "marked": "^18.1.2"
   }
 }
