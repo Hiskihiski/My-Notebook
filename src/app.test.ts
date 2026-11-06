@@ -16,6 +16,7 @@ vi.mock("./offline-cache", () => ({ pendingWritesSynced: vi.fn(() => Promise.res
 
 import { addDoc, deleteDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { renderApp, teardownApp } from "./app";
+import { QUOTES } from "./types";
 
 type Doc = Record<string, unknown> & { id: string };
 type Listener = (snap: { docs: { id: string; data: () => object }[] }) => void;
@@ -407,6 +408,10 @@ describe("sign out", () => {
 });
 
 describe("mascot", () => {
+  it("starts with the first quote of the active group", () => {
+    expect(el("qb").textContent).toBe(QUOTES[0]);
+  });
+
   it("rotates its quote every few seconds", () => {
     const first = el("qb").textContent;
     vi.advanceTimersByTime(4000 + 290);
