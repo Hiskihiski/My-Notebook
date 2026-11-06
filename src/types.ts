@@ -65,6 +65,6 @@ export const QUOTE_GROUPS = {
   ],
 };
 
-const ACTIVE_QUOTE_GROUP: keyof typeof QUOTE_GROUPS = "default";
+const ACTIVE_QUOTE_GROUP: keyof typeof QUOTE_GROUPS = "personal";
 
 export const QUOTES = QUOTE_GROUPS[ACTIVE_QUOTE_GROUP];
