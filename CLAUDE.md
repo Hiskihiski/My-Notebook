@@ -60,6 +60,8 @@ Unsaved new-note state is persisted to `localStorage["noteDraft:<uid>"]` on ever
 
 **Markdown (`src/markdown.ts`)** — `renderMd` uses `marked` (`breaks: true, gfm: true`) and pipes through `DOMPurify.sanitize`. Never render note content without sanitizing. `previewMd` is a cheaper regex-only preview used in the card list; it escapes HTML manually and only surfaces bold/italic.
 
+**Mascot quotes (`src/types.ts`)** — `QUOTE_GROUPS` holds the phrase groups and `ACTIVE_QUOTE_GROUP` picks one at build time; there is no switch in the UI. `startMascot` rotates `QUOTES` the same way for every group. All groups ship in the public bundle, active or not.
+
 **Utilities (`src/ui.ts`)** — `$()` is a typed `getElementById`; `esc()` is HTML-escape. Theme is stored in `localStorage["theme"]` and toggled via a floating `#theme-toggle` button injected into `<body>`.
 
 ## PWA
