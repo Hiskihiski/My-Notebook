@@ -26,6 +26,10 @@ export default defineConfig({
       // parser-blocking one in <head>.
       injectRegister: "script-defer",
       workbox: {
+        // registerType "autoUpdate" only sets these with injectRegister "auto";
+        // without them a new version waits until every tab of the app is closed.
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ["**/*.{js,css,html,svg,png}"],
         // 404.html: served with status 404, which would fail the whole
         // precache install. og-image.png: only for link previews.
