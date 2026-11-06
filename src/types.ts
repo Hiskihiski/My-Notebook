@@ -60,8 +60,8 @@ export const QUOTE_GROUPS = {
     "Productivity? She's right here.",
   ],
   personal: [
-    "Ich seh dich Alexa",
-    "Schreib eine Notiz Tiara",
+    "Ich seh dich Alexa Calalb",
+    "Schreib eine Notiz Tiara Maria Bielmeier",
   ],
 };
 
