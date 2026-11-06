@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import rules from "../firestore.rules?raw";
-import { TC, TL, FL, toTag, tagClass, tagLabel } from "./types";
+import { TC, TL, FL, QUOTES, QUOTE_GROUPS, toTag, tagClass, tagLabel } from "./types";
 
 describe("tags", () => {
   it("match the tags firestore.rules accepts", () => {
@@ -36,5 +36,15 @@ describe("tagClass / tagLabel", () => {
       expect(tagClass(t)).toBe("tw");
       expect(tagLabel(t)).toBe(t);
     }
+  });
+});
+
+describe("mascot quotes", () => {
+  it("use one of the groups", () => {
+    expect(Object.values(QUOTE_GROUPS)).toContain(QUOTES);
+  });
+
+  it("have at least two different phrases per group, so the rotation shows a change", () => {
+    for (const group of Object.values(QUOTE_GROUPS)) expect(new Set(group).size).toBeGreaterThanOrEqual(2);
   });
 });
