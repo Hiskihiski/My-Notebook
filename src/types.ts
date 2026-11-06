@@ -42,17 +42,29 @@ export const SORT_LABELS: Record<SortOrder, string> = {
   az:     "A–Z",
 };
 
-export const QUOTES = [
-  "You got this. Probably.",
-  "Genius at work. Allegedly.",
-  "One note at a time, boss.",
-  "Touch grass later. Write now.",
-  "Big brain energy detected.",
-  "Future you says: nice work.",
-  "Main character behavior.",
-  "Notes are just vibes with ambition.",
-  "You're built different. Literally.",
-  "Coffee is optional. You are not.",
-  "Award-winning note-taker.",
-  "Productivity? She's right here.",
-];
+// What the sidebar mascot says. ACTIVE_QUOTE_GROUP picks the group at build
+// time; every group needs at least two phrases, or the rotation shows no change.
+export const QUOTE_GROUPS = {
+  default: [
+    "You got this. Probably.",
+    "Genius at work. Allegedly.",
+    "One note at a time, boss.",
+    "Touch grass later. Write now.",
+    "Big brain energy detected.",
+    "Future you says: nice work.",
+    "Main character behavior.",
+    "Notes are just vibes with ambition.",
+    "You're built different. Literally.",
+    "Coffee is optional. You are not.",
+    "Award-winning note-taker.",
+    "Productivity? She's right here.",
+  ],
+  personal: [
+    "Ich seh dich Alexa",
+    "Schreib eine Notiz Tiara",
+  ],
+};
+
+const ACTIVE_QUOTE_GROUP: keyof typeof QUOTE_GROUPS = "default";
+
+export const QUOTES = QUOTE_GROUPS[ACTIVE_QUOTE_GROUP];

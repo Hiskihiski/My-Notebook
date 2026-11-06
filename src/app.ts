@@ -115,7 +115,7 @@ export function renderApp(root: HTMLElement, user: User): void {
         </nav>
         <button type="button" class="mascot" id="mascot" aria-pressed="false" aria-labelledby="mascot-label qb" title="Pause or resume the quotes">
           <span class="sr-only" id="mascot-label">Pause quotes:</span>
-          <div class="qbox" id="qb">You got this. Probably.</div>
+          <div class="qbox" id="qb">${esc(QUOTES[0])}</div>
           <svg class="fig" id="fig" width="46" height="60" viewBox="0 0 46 60" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
             <circle class="mbody" cx="23" cy="13" r="11.5"/>
             <circle class="mlight" cx="18.5" cy="11.5" r="2.2"/>
