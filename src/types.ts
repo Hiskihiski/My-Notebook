@@ -44,6 +44,11 @@ export const SORT_LABELS: Record<SortOrder, string> = {
 
 // What the sidebar mascot says. ACTIVE_QUOTE_GROUP picks the group at build
 // time; every group needs at least two phrases, or the rotation shows no change.
+// The "personal" phrases name real people, so they never go into git: they come
+// from VITE_MASCOT_PERSONAL_QUOTES in .env ("phrase one|phrase two"), and only
+// end up in the bundle while the switch is on "personal".
+type QuoteGroup = "default" | "personal";
+
 export const QUOTE_GROUPS = {
   default: [
     "You got this. Probably.",
@@ -59,12 +64,18 @@ export const QUOTE_GROUPS = {
     "Award-winning note-taker.",
     "Productivity? She's right here.",
   ],
-  personal: [
-    "Ich seh dich ***",
-    "Schreib eine Notiz ***",
-  ],
 };
 
-const ACTIVE_QUOTE_GROUP: keyof typeof QUOTE_GROUPS = "personal";
+// `as` instead of an annotation, so TS doesn't narrow it and flag the check below.
+const ACTIVE_QUOTE_GROUP = "personal" as QuoteGroup;
 
-export const QUOTES = QUOTE_GROUPS[ACTIVE_QUOTE_GROUP];
+// "a|b|c" → ["a", "b", "c"], or null if fewer than two phrases are left.
+export function parseQuotes(raw: string | undefined): string[] | null {
+  const quotes = (raw ?? "").split("|").map((q) => q.trim()).filter(Boolean);
+  return quotes.length >= 2 ? quotes : null;
+}
+
+// Without the .env value (CI, a fresh clone) the default phrases show instead.
+export const QUOTES: string[] = ACTIVE_QUOTE_GROUP === "personal"
+  ? parseQuotes(import.meta.env.VITE_MASCOT_PERSONAL_QUOTES) ?? QUOTE_GROUPS.default
+  : QUOTE_GROUPS.default;
