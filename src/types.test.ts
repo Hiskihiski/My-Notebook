@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import rules from "../firestore.rules?raw";
-import { TC, TL, FL, QUOTES, QUOTE_GROUPS, toTag, tagClass, tagLabel } from "./types";
+import { TC, TL, FL, QUOTES, QUOTE_GROUPS, parseQuotes, toTag, tagClass, tagLabel } from "./types";
 
 describe("tags", () => {
   it("match the tags firestore.rules accepts", () => {
@@ -40,8 +40,18 @@ describe("tagClass / tagLabel", () => {
 });
 
 describe("mascot quotes", () => {
-  it("use one of the groups", () => {
-    expect(Object.values(QUOTE_GROUPS)).toContain(QUOTES);
+  it("always have at least two different phrases", () => {
+    expect(new Set(QUOTES).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it("parse the personal phrases from the env value", () => {
+    expect(parseQuotes(" Hi there | Write a note |")).toEqual(["Hi there", "Write a note"]);
+  });
+
+  it("reject a missing, empty or single-phrase env value", () => {
+    expect(parseQuotes(undefined)).toBeNull();
+    expect(parseQuotes("")).toBeNull();
+    expect(parseQuotes("Only one|  ")).toBeNull();
   });
 
   it("have at least two different phrases per group, so the rotation shows a change", () => {
