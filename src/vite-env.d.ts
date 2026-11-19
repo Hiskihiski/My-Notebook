@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_FIREBASE_API_KEY: string;
   readonly VITE_APPCHECK_DEBUG_TOKEN?: string;
+  readonly VITE_MASCOT_PERSONAL_QUOTES?: string;
 }
 
 interface ImportMeta {
